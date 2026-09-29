@@ -12,8 +12,9 @@
     "clean": "tsc -b --clean",
     "test": "npm run build && node --test packages/*/test/*.test.mjs",
     "dev": "tsc -b --watch",
-    "serve": "http-server . -p 5173 -c-1 -s",
-    "start": "npm run build && npm run serve"
+    "serve": "node tools/serve.mjs 5173",
+    "start": "npm run build && npm run serve",
+    "test:e2e": "node tests/e2e/prototype.e2e.cjs"
   },
   "engines": {
     "node": ">=20"

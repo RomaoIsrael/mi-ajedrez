@@ -81,13 +81,13 @@ export function explain(
   }
   // Memoria pedagógica: cuanto más se repite el error, menos se explica y más se pregunta.
   if (stage === 2) {
-    return { ...base, ...e, why: undefined, consequence: undefined, whatToNotice: undefined,
+    return { ...base, ...e, why: undefined, consequence: undefined, whatToNotice: undefined, question: undefined,
       title: `${e.title} — ${l === 'es' ? 'otra vez este patrón' : 'this pattern again'}` };
   }
   if (stage >= 3) {
     return { ...base, arrows: [], highlights: [], title: SEVERITY_LABEL[l][analysis.severity], question: e.question };
   }
-  return { ...base, ...e };
+  return { ...base, ...e, question: undefined };
 }
 
 function arrowColor(f: Fact): Arrow['color'] {

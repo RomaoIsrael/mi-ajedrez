@@ -42,6 +42,7 @@ test('analyzeMove: dejar el caballo colgado es error grave con explicación comp
   assert.match(e.consequence, /3 puntos/);
   assert.ok(e.howToAvoid.includes('pregunta 6'));
   assert.deepEqual(e.highlights, [parseSquare('d5')]);
+  assert.equal(e.question, undefined, 'la 1.ª vez se explica, no se pregunta');
 });
 
 test('analyzeMove: mate perdido', () => {

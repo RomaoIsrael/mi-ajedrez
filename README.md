@@ -18,8 +18,29 @@ Principio rector: **no enseñar qué jugar, enseñar a pensar.** El éxito se mi
 | 1. Producto | Concepto, propuesta de valor, nombres, pedagogía, ADN, coach | ✅ Documentado |
 | 2. UX/UI | Flujos, mapa de pantallas, wireframes, design system, identidad | ✅ Documentado |
 | 3. Arquitectura | Funcional, técnica, Stockfish, base de datos, modelos | ✅ Documentado |
-| 4. Prototipo navegable | — | ⏭ Siguiente |
-| 5–12 | Tablero, Stockfish, lecciones, coach, ADN, personalización, pruebas, publicación | Pendiente |
+| 4. Prototipo navegable | App web con tablero real, lecciones, partidas con coach, análisis, puzzles, progreso y ADN básico | ✅ [docs/10-prototipo.md](docs/10-prototipo.md) |
+| 5. Tablero | Pulido: flechas del usuario, temas, sonidos, accesibilidad por teclado | ⏭ Siguiente |
+| 6–12 | Stockfish, lecciones, coach, ADN, personalización, pruebas, publicación | Pendiente |
+
+## Probar el prototipo
+
+Requiere Node.js ≥ 20. No hay dependencias externas.
+
+```bash
+npm install --offline   # solo enlaza los paquetes del monorepo
+npm start               # compila y abre http://localhost:5173/apps/web-prototype/
+npm test                # 68 pruebas unitarias (incluye perft del motor de reglas)
+npm run test:e2e        # recorrido completo con Playwright (con el servidor arrancado)
+```
+
+```
+apps/web-prototype   interfaz (TypeScript + DOM, sin framework)
+packages/chess-core  reglas, FEN, SAN, PGN
+packages/tactics     ChessExplanationEngine v0: hechos → explicación, pistas, ¿Por qué?
+packages/bots        rivales humanizados (niveles 1–6) con personalidad
+packages/pedagogy    repetición espaciada y modelo de dominio
+packages/content     mapa, lecciones y puzzles originales (verificados por tests)
+```
 
 ## Entregables iniciales (sección 101 del brief)
 

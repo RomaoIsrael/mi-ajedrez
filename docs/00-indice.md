@@ -9,6 +9,7 @@
 7. [Datos](07-datos.md) — esquema PostgreSQL, `UserChessProfile`, eventos de aprendizaje, sincronización.
 8. [Gamificación](08-gamificacion.md) — XP ligada a aprendizaje real, logros, misiones, rachas sanas.
 9. [MVP, roadmap y pruebas](09-mvp-roadmap-pruebas.md).
+10. [Prototipo navegable](10-prototipo.md) — qué incluye, arquitectura, flujo, cómo ejecutarlo y limitaciones.
 
 ## Convenciones
 
