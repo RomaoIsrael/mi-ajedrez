@@ -8,6 +8,7 @@
     "@kavalo/tactics": "*",
     "@kavalo/bots": "*",
     "@kavalo/pedagogy": "*",
-    "@kavalo/content": "*"
+    "@kavalo/content": "*",
+    "@kavalo/coach": "*"
   }
 }

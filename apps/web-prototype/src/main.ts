@@ -1,6 +1,9 @@
 /** Punto de entrada: enrutado por hash, navegación inferior y montaje de pantallas. */
 import { h } from './dom.js';
+import { renderAchievements } from './screens/achievements.js';
 import { renderAnalysis } from './screens/analysis.js';
+import { renderReport } from './screens/report.js';
+import { showReward } from './components/toast.js';
 import { renderDna } from './screens/dna.js';
 import { renderHome, renderPlan } from './screens/home.js';
 import { renderLearn } from './screens/learn.js';
@@ -10,7 +13,7 @@ import { renderGame, renderPlaySetup } from './screens/play.js';
 import { renderProgress } from './screens/progress.js';
 import { renderPuzzles } from './screens/puzzles.js';
 import { renderSettings } from './screens/settings.js';
-import { profile } from './state/store.js';
+import { checkRewards, onReward, profile } from './state/store.js';
 import { applyTheme } from './theme.js';
 
 type Render = (root: HTMLElement, params: string[]) => void | (() => void);
@@ -27,6 +30,8 @@ const ROUTES: Record<string, { render: Render; tab?: string; title: string }> = 
   progress: { render: renderProgress, tab: 'progress', title: 'Progreso' },
   dna: { render: renderDna, tab: 'progress', title: 'ADN ajedrecístico' },
   settings: { render: renderSettings, title: 'Ajustes' },
+  achievements: { render: renderAchievements, tab: 'progress', title: 'Logros' },
+  report: { render: renderReport, tab: 'progress', title: 'Tu semana' },
 };
 
 const TABS = [
@@ -65,5 +70,8 @@ function route(): void {
 }
 
 applyTheme();
+onReward(showReward);
 window.addEventListener('hashchange', route);
 route();
+// Logros ya merecidos por perfiles anteriores a esta versión.
+if (profile.onboarded) checkRewards();

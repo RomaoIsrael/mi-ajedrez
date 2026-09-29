@@ -7,6 +7,8 @@ import {
   initialMastery, newCard, schedule, updateMastery,
   type ConceptMastery, type EvidenceContext, type Grade, type ReviewCard,
 } from '@kavalo/pedagogy';
+import { dailyMissions, dayKey, lessonCardId, newAchievements, type ActivityEvent, type Achievement, type Mission } from '@kavalo/coach';
+import { LESSONS } from '@kavalo/content';
 
 export type Experience = 'never' | 'rules' | 'occasional' | 'frequent' | 'club' | 'competitive';
 export type CoachStyle = 'mentor' | 'master' | 'friend' | 'tactician' | 'motivator';
@@ -76,6 +78,13 @@ export interface Profile {
   games: GameRecord[];
   personalPuzzles: PersonalPuzzle[];
   solvedPuzzles: string[];
+  /** Eventos de aprendizaje: fuente de misiones, logros y reportes (docs/07-datos.md). */
+  activity: ActivityEvent[];
+  ratingHistory: { at: number; kind: 'game' | 'puzzle'; rating: number }[];
+  /** Logros conseguidos: id → fecha. */
+  achievements: Record<string, number>;
+  /** Misiones cuya XP ya se cobró: día → ids. */
+  missionsClaimed: Record<string, string[]>;
 }
 
 const KEY = 'kavalo.profile.v1';
@@ -89,6 +98,7 @@ function defaults(): Profile {
     },
     xp: 0, streak: { current: 0, best: 0, lastDay: null }, gameRating: 400, puzzleRating: 400,
     completedLessons: [], mastery: {}, reviews: [], mistakes: [], games: [], personalPuzzles: [], solvedPuzzles: [],
+    activity: [], ratingHistory: [], achievements: {}, missionsClaimed: {},
   };
 }
 
@@ -108,6 +118,14 @@ function load(): Profile {
 }
 
 export const profile: Profile = load();
+
+// Migración: las lecciones completadas antes de existir el repaso espaciado reciben su tarjeta.
+for (const id of profile.completedLessons) {
+  const lesson = LESSONS.find((l) => l.id === id);
+  if (lesson && !profile.reviews.some((r) => r.itemId === lessonCardId(id))) {
+    profile.reviews.push(newCard(lesson.conceptId, lessonCardId(id), Date.now()));
+  }
+}
 const listeners = new Set<() => void>();
 
 export function save(): void {
@@ -129,20 +147,63 @@ export function resetProfile(): void {
   save();
 }
 
-const today = () => new Date().toISOString().slice(0, 10);
-
 /** La racha cuenta días con aprendizaje verificado, no aperturas de la app. */
 export function recordLearning(xp: number, reason: string): void {
   profile.xp += xp;
-  const d = today();
+  const d = dayKey(Date.now());
   if (profile.streak.lastDay !== d) {
-    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const yesterday = dayKey(Date.now() - 86_400_000);
     profile.streak.current = profile.streak.lastDay === yesterday ? profile.streak.current + 1 : 1;
     profile.streak.best = Math.max(profile.streak.best, profile.streak.current);
     profile.streak.lastDay = d;
   }
   void reason;
   save();
+  checkRewards();
+}
+
+// ── Actividad, misiones y logros ──
+
+export type Reward = { type: 'achievement'; achievement: Achievement } | { type: 'mission'; mission: Mission };
+const rewardListeners = new Set<(r: Reward) => void>();
+
+/** La interfaz se suscribe para mostrar avisos de logros y misiones completadas. */
+export function onReward(fn: (r: Reward) => void): () => void {
+  rewardListeners.add(fn);
+  return () => rewardListeners.delete(fn);
+}
+
+const MAX_ACTIVITY = 3000;
+
+export function logActivity(ev: Omit<ActivityEvent, 'at'> & { at?: number }): void {
+  profile.activity.push({ at: Date.now(), ...ev });
+  if (profile.activity.length > MAX_ACTIVITY) profile.activity.splice(0, profile.activity.length - MAX_ACTIVITY);
+  save();
+  checkRewards();
+}
+
+/** Cobra la XP de misiones terminadas y desbloquea logros nuevos (una sola vez cada uno). */
+export function checkRewards(): void {
+  const now = Date.now();
+  const day = dayKey(now);
+  const claimed = new Set(profile.missionsClaimed[day] ?? []);
+  const rewards: Reward[] = [];
+  for (const m of dailyMissions(profile, now)) {
+    if (m.done && !claimed.has(m.id)) {
+      claimed.add(m.id);
+      profile.xp += m.xp;
+      rewards.push({ type: 'mission', mission: m });
+    }
+  }
+  // Solo se conservan las misiones de hoy (las anteriores ya no se pueden cobrar).
+  profile.missionsClaimed = { [day]: [...claimed] };
+  for (const a of newAchievements(profile)) {
+    profile.achievements[a.id] = now;
+    rewards.push({ type: 'achievement', achievement: a });
+  }
+  if (!rewards.length) return;
+  save();
+  rewards.forEach((r) => rewardListeners.forEach((l) => l(r)));
 }
 
 export function mastery(conceptId: string): ConceptMastery {
@@ -153,6 +214,9 @@ export function addEvidence(conceptId: string, correct: boolean, context: Eviden
   const before = mastery(conceptId);
   const res = updateMastery(before, { correct, context, hints, at: Date.now() });
   profile.mastery[conceptId] = res.mastery;
+  if (res.mastery.state !== before.state) {
+    profile.activity.push({ at: Date.now(), kind: 'mastery', ms: 0, concept: conceptId, state: res.mastery.state });
+  }
   if (before.state !== 'understood' && res.mastery.state === 'understood') profile.xp += 50;
   if (before.state !== 'mastered' && res.mastery.state === 'mastered') profile.xp += 150;
   save();
@@ -177,6 +241,7 @@ export function updateRating(kind: 'gameRating' | 'puzzleRating', opponent: numb
   const k = profile[kind] < 800 ? 40 : 24;
   const delta = Math.round(k * (score - expected));
   profile[kind] = Math.max(100, profile[kind] + delta);
+  profile.ratingHistory.push({ at: Date.now(), kind: kind === 'gameRating' ? 'game' : 'puzzle', rating: profile[kind] });
   save();
   return delta;
 }

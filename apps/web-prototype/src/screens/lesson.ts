@@ -7,17 +7,34 @@ import { Board } from '../components/board.js';
 import { cue } from '../feedback.js';
 import { coachBubble, COACHES } from '../components/coach.js';
 import { button, h, navigate, primaryButton, screen } from '../dom.js';
-import { addEvidence, profile, recordLearning, save } from '../state/store.js';
+import { lessonCardId } from '@kavalo/coach';
+import { addEvidence, addReview, gradeReview, logActivity, profile, recordLearning, save } from '../state/store.js';
 
-export function renderLesson(root: HTMLElement, [id]: string[]): void {
+const PRACTICE: LessonStep['kind'][] = ['select', 'move', 'reach', 'quiz'];
+
+/**
+ * Pasos de un repaso espaciado: solo práctica (sin explicaciones), como máximo 3. La ventana
+ * rota en cada repaso para no memorizar siempre la misma posición.
+ */
+function reviewSteps(steps: LessonStep[], offset: number): LessonStep[] {
+  const practice = steps.filter((s) => PRACTICE.includes(s.kind));
+  if (practice.length <= 3) return practice;
+  return Array.from({ length: 3 }, (_, i) => practice[(offset + i) % practice.length]!);
+}
+
+export function renderLesson(root: HTMLElement, [id, mode]: string[]): void {
   const lesson = lessonById(id ?? '');
   if (!lesson) {
     root.append(screen('Lección no encontrada', primaryButton('Volver al mapa', () => navigate('#/learn'))));
     return;
   }
+  const reviewMode = mode === 'review';
+  const card = profile.reviews.find((r) => r.itemId === lessonCardId(lesson.id));
+  const steps = reviewMode ? reviewSteps(lesson.steps, (card?.step ?? 0) + (card?.lapses ?? 0)) : lesson.steps;
+  const startedAt = Date.now();
   let index = 0;
   let mistakes = 0;
-  const title = h('p', { class: 'eyebrow' }, lesson.title);
+  const title = h('p', { class: 'eyebrow' }, reviewMode ? `Repaso · ${lesson.title}` : lesson.title);
   const bar = h('div', { class: 'progress-bar' });
   const boardHolder = h('div', { class: 'board-holder' });
   const panel = h('div', { class: 'lesson-panel' });
@@ -39,15 +56,15 @@ export function renderLesson(root: HTMLElement, [id]: string[]): void {
 
   const next = () => {
     index++;
-    if (index >= lesson.steps.length) return finish();
+    if (index >= steps.length) return finish();
     show();
   };
 
   const continueBtn = (label = 'Continuar') => h('div', { class: 'cta' }, primaryButton(label, next));
 
   function show() {
-    const step = lesson!.steps[index]!;
-    bar.style.width = `${(index / lesson!.steps.length) * 100}%`;
+    const step = steps[index]!;
+    bar.style.width = `${(index / steps.length) * 100}%`;
     board.clearMarks();
     setInteraction({});
     const pos = step.fen ? Position.fromFen(step.fen) : null;
@@ -242,11 +259,39 @@ export function renderLesson(root: HTMLElement, [id]: string[]): void {
     }
   }
 
+  function finishReview() {
+    bar.style.width = '100%';
+    boardHolder.hidden = true;
+    // Nota del repaso → repetición espaciada (1, 3, 7, 14, 30 días) y evidencia de dominio.
+    const grade = mistakes === 0 ? 'good' : mistakes === 1 ? 'hard' : 'fail';
+    gradeReview(lessonCardId(lesson!.id), grade);
+    addEvidence(lesson!.conceptId, mistakes === 0, 'review', 0);
+    logActivity({ kind: 'review', ms: Date.now() - startedAt, ok: mistakes === 0, concept: lesson!.conceptId, ref: lesson!.id });
+    recordLearning(mistakes === 0 ? 10 : 4, `review:${lesson!.id}`);
+    const next = profile.reviews.find((r) => r.itemId === lessonCardId(lesson!.id));
+    const days = next?.intervalDays ?? 1;
+    panel.replaceChildren(
+      coachBubble([
+        h('h2', {}, mistakes === 0 ? '¡Repaso superado!' : 'Repaso completado'),
+        h('p', {}, mistakes === 0
+          ? `${COACHES[profile.coachStyle].onGood} Lo recuerdas bien: el próximo repaso será dentro de ${days} ${days === 1 ? 'día' : 'días'}.`
+          : `Cometiste ${mistakes} ${mistakes === 1 ? 'error' : 'errores'}. Lo repasaremos de nuevo ${days === 1 ? 'mañana' : `dentro de ${days} días`}: repetir en el momento justo es lo que fija lo aprendido.`),
+      ]),
+      h('div', { class: 'cta' },
+        primaryButton('CONTINUAR ENTRENAMIENTO', () => navigate('#/')),
+        mistakes > 0 ? button('Repasar la lección completa', () => navigate(`#/lesson/${lesson!.id}`)) : null),
+    );
+  }
+
   function finish() {
+    if (reviewMode) return finishReview();
     bar.style.width = '100%';
     const first = !profile.completedLessons.includes(lesson!.id);
     if (first) profile.completedLessons.push(lesson!.id);
     addEvidence(lesson!.conceptId, mistakes <= 1, 'guided', 0);
+    // Primer repaso espaciado al día siguiente.
+    addReview(lesson!.conceptId, lessonCardId(lesson!.id));
+    logActivity({ kind: 'lesson', ms: Date.now() - startedAt, ok: mistakes <= 1, concept: lesson!.conceptId, ref: lesson!.id, first });
     recordLearning(first ? 20 : 5, `lesson:${lesson!.id}`);
     save();
     boardHolder.hidden = true;
@@ -255,7 +300,7 @@ export function renderLesson(root: HTMLElement, [id]: string[]): void {
       coachBubble([
         h('h2', {}, '¡Lección completada!'),
         h('p', {}, mistakes === 0 ? `${COACHES[profile.coachStyle].onGood} Sin errores.` : `Cometiste ${mistakes} ${mistakes === 1 ? 'error' : 'errores'}: es parte de aprender.`),
-        h('p', { class: 'muted small' }, 'Un concepto no se considera aprendido por resolverlo una vez: volverá en puzzles, repasos y partidas.'),
+        h('p', { class: 'muted small' }, 'Un concepto no se considera aprendido por resolverlo una vez: mañana te propondré un repaso corto, y volverá en puzzles y partidas.'),
       ]),
       h('div', { class: 'cta' },
         puzzles.length

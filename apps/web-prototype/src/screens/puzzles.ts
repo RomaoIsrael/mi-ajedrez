@@ -12,7 +12,7 @@ import { cue } from '../feedback.js';
 import { coachBubble } from '../components/coach.js';
 import { append, button, h, navigate, primaryButton, screen } from '../dom.js';
 import { mistakeStats } from '../state/insights.js';
-import { addEvidence, addReview, gradeReview, profile, recordLearning, save, updateRating } from '../state/store.js';
+import { addEvidence, addReview, gradeReview, logActivity, profile, recordLearning, save, updateRating } from '../state/store.js';
 
 interface Item { id: string; fen: string; accept: string[]; line?: string[]; goal?: 'mate' | 'material'; concept: string; rating: number; prompt: string; explanation?: string; personal?: { days: number } }
 
@@ -153,6 +153,7 @@ export function renderPuzzles(root: HTMLElement, [conceptFilter]: string[]): voi
       if (profile.reviews.some((r) => r.itemId === item.id)) gradeReview(item.id, grade);
       else if (!firstTry) addReview(item.concept, item.id); // repetición espaciada si falla
       if (firstTry && !profile.solvedPuzzles.includes(item.id)) profile.solvedPuzzles.push(item.id);
+      logActivity({ kind: 'puzzle', ms: Math.round(ms), ok: firstTry, hints, concept: item.concept, ref: item.id });
       recordLearning(firstTry ? (item.personal ? 20 : 8) : 2, 'puzzle');
       save();
       document.getElementById('prating')!.textContent = String(profile.puzzleRating);

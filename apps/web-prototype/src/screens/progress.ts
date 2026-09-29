@@ -1,5 +1,6 @@
 /** Progreso: ratings, partidas, errores frecuentes, Error Reduction Rate y dominio de conceptos. */
 import { STATE_ICON } from '@kavalo/pedagogy';
+import { learningStreak } from '@kavalo/coach';
 import { h, navigate, primaryButton, screen } from '../dom.js';
 import { conceptProgress, errorReduction, mistakeStats } from '../state/insights.js';
 import { levelName, profile } from '../state/store.js';
@@ -18,7 +19,7 @@ export function renderProgress(root: HTMLElement): void {
       tile('Rating de partidas', profile.gameRating, levelName()),
       tile('Rating de puzzles', profile.puzzleRating),
       tile('Partidas', g.length, `${wins} V · ${draws} T · ${g.length - wins - draws} D`),
-      tile('XP', profile.xp, `Racha: ${profile.streak.current} (mejor ${profile.streak.best})`)),
+      tile('XP', profile.xp, `Racha: ${learningStreak(profile)} (mejor ${Math.max(profile.streak.best, learningStreak(profile))})`)),
 
     h('div', { class: 'card' }, h('h2', {}, 'Errores frecuentes'),
       stats.length ? h('ul', { class: 'bars' }, ...stats.map((s) => h('li', {},
@@ -45,6 +46,9 @@ export function renderProgress(root: HTMLElement): void {
     g.length ? h('div', { class: 'card' }, h('h2', {}, 'Partidas recientes'),
       h('ul', { class: 'games' }, ...g.slice(-8).reverse().map((x) => h('li', {}, h('a', { href: `#/analysis/${x.id}` },
         `${x.userResult === 'win' ? '✅' : x.userResult === 'draw' ? '🤝' : '❌'} ${new Date(x.at).toLocaleDateString('es')} · vs ${x.bot.personality} nivel ${x.bot.level}`))))) : null,
+    h('div', { class: 'home-links' },
+      h('a', { class: 'card card-link', href: '#/report' }, h('p', { class: 'eyebrow' }, 'Tu semana'), h('p', {}, 'Reporte semanal')),
+      h('a', { class: 'card card-link', href: '#/achievements' }, h('p', { class: 'eyebrow' }, 'Logros'), h('p', {}, 'Ver todos'))),
     h('div', { class: 'cta' }, primaryButton('VER MI ADN', () => navigate('#/dna'))),
   ));
 }

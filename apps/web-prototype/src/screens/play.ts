@@ -14,8 +14,9 @@ import { cue, moveCue } from '../feedback.js';
 import { coachBubble, explanationCard } from '../components/coach.js';
 import { button, h, navigate, primaryButton, screen } from '../dom.js';
 import { KIND_LABEL } from '../state/insights.js';
+import { checklistStatus, FADE_AFTER_GAMES, threatWarningsNeeded } from '@kavalo/coach';
 import {
-  addEvidence, addReview, explanationLevel, mastery, profile, recordLearning, save, uid, updateRating,
+  addEvidence, addReview, explanationLevel, logActivity, mastery, profile, recordLearning, save, uid, updateRating,
   type GameRecord,
 } from '../state/store.js';
 
@@ -70,6 +71,7 @@ interface Session {
   clock: { w: number; b: number; inc: number } | null;
   analyses: Map<number, MoveAnalysis>;
   hintsUsed: number;
+  startedAt: number;
 }
 
 let session: Session | null = null;
@@ -80,7 +82,7 @@ function startGame(): void {
   session = {
     id: uid(), game: new Game(), user, setup: { ...setup },
     clock: c ? { w: c.base * 1000, b: c.base * 1000, inc: c.inc * 1000 } : null,
-    analyses: new Map(), hintsUsed: 0,
+    analyses: new Map(), hintsUsed: 0, startedAt: Date.now(),
   };
 }
 
@@ -108,10 +110,18 @@ export function renderGame(root: HTMLElement): () => void {
   const coachPanel = h('div', { class: 'game-coach' });
   const moveList = h('ol', { class: 'movelist', 'aria-label': 'Jugadas' });
   const clockEl = { w: h('span', { class: 'clock' }), b: h('span', { class: 'clock' }) };
+  // Retirada progresiva de ayudas: cada recordatorio desaparece cuando ya no hace falta.
+  const status = checklistStatus(profile);
+  const active = status.filter((c) => !c.retired).map((c) => c.item.label);
+  const retired = status.filter((c) => c.retired).map((c) => c.item.label);
   const checklist = h('details', { class: 'checklist', open: s.setup.checklist },
     h('summary', {}, 'Checklist antes de mover'),
-    h('div', { class: 'checks' }, ...['Jaques', 'Capturas', 'Amenazas', 'Piezas indefensas', 'Seguridad del rey', 'Respuesta del rival'].map((c) =>
-      h('label', {}, h('input', { type: 'checkbox' }), ` ${c}`))));
+    active.length
+      ? h('div', { class: 'checks' }, ...active.map((c) => h('label', {}, h('input', { type: 'checkbox' }), ` ${c}`)))
+      : h('p', { class: 'muted small' }, '¡Ya no necesitas el checklist! Haz estas preguntas mentalmente.'),
+    retired.length
+      ? h('p', { class: 'muted small checks-retired' }, `👏 Retirados porque llevas ${FADE_AFTER_GAMES} partidas sin ese error: ${retired.join(', ')}.`)
+      : null);
   const opp = s.user === 'w' ? 'b' : 'w';
   const nav = moveNavigator((i) => showPly(i));
   const reviewBanner = h('div', { class: 'review-banner', hidden: true },
@@ -284,7 +294,7 @@ export function renderGame(root: HTMLElement): () => void {
         board.setArrows(effects.flatMap((e) => e.arrows));
         say([h('ul', {}, ...(effects.length ? effects.map((e) => h('li', {}, e.text)) : [h('li', {}, 'Una jugada de espera: mejora ligeramente su posición.')]))]);
       });
-      const warn = s.setup.coach && explanationLevel() !== 'advanced' ? threatWarning(s.game.position) : null;
+      const warn = s.setup.coach && explanationLevel() !== 'advanced' && threatWarningsNeeded(profile) ? threatWarning(s.game.position) : null;
       if (warn) {
         board.setArrows(warn.arrows);
         say([h('p', { class: 'msg msg-bad' }, warn.text)], [why]);
@@ -331,6 +341,8 @@ export function renderGame(root: HTMLElement): () => void {
     if (s.game.history.length >= 2) {
       profile.games.push(record);
       updateRating('gameRating', level.elo, userResult === 'win' ? 1 : userResult === 'draw' ? 0.5 : 0);
+      const clean = !profile.mistakes.some((m) => m.gameId === s.id);
+      logActivity({ kind: 'game', ms: Date.now() - s.startedAt, ok: clean, ref: s.id });
       recordLearning(15, 'game');
     }
     const REASON: Record<string, string> = { checkmate: 'jaque mate', stalemate: 'ahogado', threefold: 'triple repetición', 'fifty-move': 'regla de 50 movimientos', 'insufficient-material': 'material insuficiente', resign: 'abandono', timeout: 'tiempo' };
