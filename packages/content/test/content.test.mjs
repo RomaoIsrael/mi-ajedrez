@@ -150,3 +150,27 @@ test('aperturas: todas las líneas del libro son legales y completas', async () 
   assert.equal(detectOpening(['d4', 'd5', 'Bf4', 'Nf6']).id, 'london');
   assert.equal(detectOpening(['a3']), null);
 });
+
+import { HISTORICAL_GAMES, START_POSITIONS as SP } from '../dist/index.js';
+import { Game as HGame, Position as HPosition } from '@kavalo/chess-core';
+
+test('partidas históricas: jugadas legales, momentos coherentes y finales de mate', () => {
+  assert.ok(HISTORICAL_GAMES.length >= 5);
+  for (const g of HISTORICAL_GAMES) {
+    const game = new HGame();
+    const sans = g.moves.split(' ');
+    sans.forEach((san, i) => {
+      const m = g.moments.find((x) => x.ply === i);
+      if (m) assert.equal(m.accept[0], san, `${g.id}: el momento ${i} debe coincidir con la jugada de la partida`);
+      assert.ok(game.move(san), `${g.id}: ${san} (media jugada ${i}) es ilegal`);
+    });
+    assert.equal(g.moments.length >= 3, true, `${g.id}: al menos 3 momentos clave`);
+    for (const m of g.moments) assert.equal(m.ply % 2, g.moves.split(' ').length % 2 === 1 ? 0 : m.ply % 2, `${g.id}: momentos del bando ganador`);
+    if (g.endsInMate) assert.equal(game.status().reason, 'checkmate', `${g.id} termina en mate`);
+    assert.equal(game.status().result, g.result);
+  }
+});
+
+test('posiciones de inicio: legales y con jugadas', () => {
+  for (const p of SP) assert.ok(HPosition.fromFen(p.fen).legalMoves().length > 0, p.id);
+});

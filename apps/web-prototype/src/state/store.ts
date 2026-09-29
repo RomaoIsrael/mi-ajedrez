@@ -110,11 +110,16 @@ export interface TrainingStats {
   coords: { sessions: number; bestScore: number | null; bestMs: number | null };
   vision: Record<string, { correct: number; total: number }>;
   calc: { exercises: number; totalDepth: number; maxDepth: number; perfect: number; bestInCandidates: number; candidates: number };
+  /** Aperturas estudiadas: veces practicada la línea y cuántas sin errores. */
+  openings: Record<string, { practiced: number; clean: number; at: number }>;
+  /** Partidas históricas: momentos clave acertados. */
+  library: Record<string, { found: number; total: number; at: number }>;
 }
 
 export const emptyTraining = (): TrainingStats => ({
   coords: { sessions: 0, bestScore: null, bestMs: null }, vision: {},
   calc: { exercises: 0, totalDepth: 0, maxDepth: 0, perfect: 0, bestInCandidates: 0, candidates: 0 },
+  openings: {}, library: {},
 });
 
 const KEY = 'kavalo.profile.v1';
@@ -139,7 +144,7 @@ function load(): Profile {
       const stored = JSON.parse(raw) as Partial<Profile>;
       const base = defaults();
       // Fusión profunda de ajustes: los perfiles antiguos reciben los ajustes nuevos por defecto.
-      return { ...base, ...stored, settings: { ...base.settings, ...(stored.settings ?? {}) } } as Profile;
+      return { ...base, ...stored, settings: { ...base.settings, ...(stored.settings ?? {}) }, training: { ...base.training, ...(stored.training ?? {}) } } as Profile;
     }
   } catch {
     /* almacenamiento no disponible: se usa el estado en memoria */

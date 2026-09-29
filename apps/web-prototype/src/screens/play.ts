@@ -65,6 +65,11 @@ export const CLOCKS: Record<string, { label: string; base: number; inc: number }
   '15+10': { label: '15+10', base: 900, inc: 10 }, '30': { label: '30 min', base: 1800, inc: 0 }, custom: { label: 'Personalizado', base: 0, inc: 0 },
 };
 
+/** Prepara la configuración desde otra pantalla (p. ej. «Jugar desde esta apertura»). */
+export function presetGame(p: Partial<Pick<Setup, 'mode' | 'openingId' | 'positionId' | 'theme'>>): void {
+  Object.assign(setup, p);
+}
+
 function clockFor(s: Setup): { base: number; inc: number } | null {
   if (s.clock === 'custom') return { base: Math.max(1, s.custom.base) * 60, inc: Math.max(0, s.custom.inc) };
   return CLOCKS[s.clock] ?? null;

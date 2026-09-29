@@ -344,6 +344,12 @@ circle.arrow-user { stroke: var(--brass); } circle.arrow-danger { stroke: var(--
 .mode-desc { margin-top: 4px; }
 .field { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
 .custom-clock { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* Aperturas */
+.stepper { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 0; margin: 8px 0; font-size: .85rem; }
+.stepper li.on button { font-weight: 700; text-decoration: none; color: var(--text); }
+.stepper li.done button { color: var(--muted); }
+.opening-list { list-style: none; padding: 0; margin: 0; }
+
 /* Entrenamiento */
 .learn-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 .chip { display: inline-block; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); text-decoration: none; font-size: .9rem; min-height: 36px; }

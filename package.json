@@ -14,7 +14,7 @@
     "dev": "tsc -b --watch",
     "serve": "node tools/serve.mjs 5173",
     "start": "npm run build && npm run serve",
-    "test:e2e": "node tests/e2e/prototype.e2e.cjs && node tests/e2e/board.e2e.cjs && node tests/e2e/content.e2e.cjs && node tests/e2e/coach.e2e.cjs && node tests/e2e/engine.e2e.cjs && node tests/e2e/dna.e2e.cjs && node tests/e2e/modes.e2e.cjs && node tests/e2e/training.e2e.cjs"
+    "test:e2e": "node tests/e2e/prototype.e2e.cjs && node tests/e2e/board.e2e.cjs && node tests/e2e/content.e2e.cjs && node tests/e2e/coach.e2e.cjs && node tests/e2e/engine.e2e.cjs && node tests/e2e/dna.e2e.cjs && node tests/e2e/modes.e2e.cjs && node tests/e2e/training.e2e.cjs && node tests/e2e/study.e2e.cjs"
   },
   "engines": {
     "node": ">=20"

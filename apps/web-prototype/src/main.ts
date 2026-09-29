@@ -5,6 +5,8 @@ import { renderAnalysis } from './screens/analysis.js';
 import { renderReport } from './screens/report.js';
 import { reviewInBackground } from './state/review.js';
 import { renderTrain } from './screens/train.js';
+import { renderOpenings } from './screens/openings.js';
+import { renderLibrary } from './screens/library.js';
 import { showReward } from './components/toast.js';
 import { renderDna } from './screens/dna.js';
 import { renderHome, renderPlan } from './screens/home.js';
@@ -36,6 +38,8 @@ const ROUTES: Record<string, { render: Render; tab?: string; title: string }> = 
   achievements: { render: renderAchievements, tab: 'progress', title: 'Logros' },
   report: { render: renderReport, tab: 'progress', title: 'Tu reporte' },
   train: { render: renderTrain, tab: 'learn', title: 'Entrenamiento' },
+  openings: { render: renderOpenings, tab: 'learn', title: 'Aperturas' },
+  library: { render: renderLibrary, tab: 'learn', title: 'Biblioteca' },
 };
 
 const TABS = [
