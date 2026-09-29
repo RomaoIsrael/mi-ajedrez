@@ -10,6 +10,7 @@
     { "path": "../../packages/content" },
     { "path": "../../packages/coach" },
     { "path": "../../packages/engine" },
-    { "path": "../../packages/dna" }
+    { "path": "../../packages/dna" },
+    { "path": "../../packages/training" }
   ]
 }

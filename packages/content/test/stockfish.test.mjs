@@ -31,3 +31,19 @@ for (const pz of PUZZLES) {
     }
   });
 }
+
+import { START_POSITIONS } from '../dist/index.js';
+
+for (const sp of START_POSITIONS) {
+  test(`Stockfish confirma el objetivo de la posición ${sp.id}`, async () => {
+    const pos = Position.fromFen(sp.fen);
+    assert.ok(pos.legalMoves().length > 0, 'la posición tiene jugadas');
+    const a = await engine.analyse(sp.fen, { depth: 18 });
+    const best = a.lines[0];
+    const turnCp = best.mate !== undefined ? (best.mate > 0 ? 10000 : -10000) : best.cp;
+    const userCp = pos.turn === sp.side ? turnCp : -turnCp;
+    if (sp.goal === 'win') assert.ok(userCp >= 200, `debe ser ganadora para el usuario (${userCp})`);
+    if (sp.goal === 'draw') assert.ok(Math.abs(userCp) <= 100, `debe ser tablas con buen juego (${userCp})`);
+    if (sp.goal === 'play') assert.ok(Math.abs(userCp) <= 150, `debe ser equilibrada (${userCp})`);
+  });
+}

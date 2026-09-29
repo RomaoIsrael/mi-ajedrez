@@ -26,6 +26,9 @@
       "path": "packages/coach"
     },
     {
+      "path": "packages/training"
+    },
+    {
       "path": "apps/web-prototype"
     }
   ]

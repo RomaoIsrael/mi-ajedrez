@@ -42,10 +42,12 @@ export interface GameRecord {
   evals?: PositionEval[];
   /** Ya se registraron los errores y ejercicios detectados por el motor. */
   engineRecorded?: boolean;
-  /** Milisegundos que el usuario tardó en cada una de sus jugadas. */
-  moveTimes?: number[];
+  /** Milisegundos que el usuario tardó en cada una de sus jugadas (null: jugada previa, sin medir). */
+  moveTimes?: (number | null)[];
   /** Fracción del reloj que le quedaba al usuario en cada jugada (si había reloj). */
-  clockFractions?: number[];
+  clockFractions?: (number | null)[];
+  /** Modo de partida (brief §60). */
+  mode?: string;
   /** Rasgos medidos con Stockfish (materia prima del ADN, docs/15-adn.md). */
   features?: GameFeatures;
 }
@@ -100,7 +102,20 @@ export interface Profile {
   missionsClaimed: Record<string, string[]>;
   /** Instantáneas semanales del ADN para mostrar la evolución «antes → ahora». */
   dnaSnapshots: { at: number; games: number; dims: DnaValue[] }[];
+  /** Resultados de los entrenamientos de coordenadas, visión y cálculo (brief §51–53). */
+  training: TrainingStats;
 }
+
+export interface TrainingStats {
+  coords: { sessions: number; bestScore: number | null; bestMs: number | null };
+  vision: Record<string, { correct: number; total: number }>;
+  calc: { exercises: number; totalDepth: number; maxDepth: number; perfect: number; bestInCandidates: number; candidates: number };
+}
+
+export const emptyTraining = (): TrainingStats => ({
+  coords: { sessions: 0, bestScore: null, bestMs: null }, vision: {},
+  calc: { exercises: 0, totalDepth: 0, maxDepth: 0, perfect: 0, bestInCandidates: 0, candidates: 0 },
+});
 
 const KEY = 'kavalo.profile.v1';
 
@@ -113,7 +128,7 @@ function defaults(): Profile {
     },
     xp: 0, streak: { current: 0, best: 0, lastDay: null }, gameRating: 400, puzzleRating: 400,
     completedLessons: [], mastery: {}, reviews: [], mistakes: [], games: [], personalPuzzles: [], solvedPuzzles: [],
-    activity: [], ratingHistory: [], achievements: {}, missionsClaimed: {}, dnaSnapshots: [],
+    activity: [], ratingHistory: [], achievements: {}, missionsClaimed: {}, dnaSnapshots: [], training: emptyTraining(),
   };
 }
 

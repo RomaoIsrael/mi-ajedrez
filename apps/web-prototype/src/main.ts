@@ -4,6 +4,7 @@ import { renderAchievements } from './screens/achievements.js';
 import { renderAnalysis } from './screens/analysis.js';
 import { renderReport } from './screens/report.js';
 import { reviewInBackground } from './state/review.js';
+import { renderTrain } from './screens/train.js';
 import { showReward } from './components/toast.js';
 import { renderDna } from './screens/dna.js';
 import { renderHome, renderPlan } from './screens/home.js';
@@ -34,6 +35,7 @@ const ROUTES: Record<string, { render: Render; tab?: string; title: string }> = 
   settings: { render: renderSettings, title: 'Ajustes' },
   achievements: { render: renderAchievements, tab: 'progress', title: 'Logros' },
   report: { render: renderReport, tab: 'progress', title: 'Tu reporte' },
+  train: { render: renderTrain, tab: 'learn', title: 'Entrenamiento' },
 };
 
 const TABS = [

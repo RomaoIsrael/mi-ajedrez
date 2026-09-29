@@ -16,6 +16,11 @@ const PIECE_BASE = new URL('../../../../assets/pieces/royal-modern/', import.met
 const NAMES: Record<PieceType, string> = { p: 'peón', n: 'caballo', b: 'alfil', r: 'torre', q: 'dama', k: 'rey' };
 let boardCount = 0;
 
+/** Jaque al bando que mueve; los tableros de ejercicios (coordenadas) pueden no tener reyes. */
+function inCheckSafe(pos: Position): boolean {
+  return pos.board.some((p) => p?.type === 'k' && p.color === pos.turn) && pos.inCheck();
+}
+
 export type HighlightKind = 'hint' | 'good' | 'bad' | 'info' | 'zone';
 export type FlashKind = 'good' | 'brilliant' | 'bad';
 export type UserArrowColor = 'user' | 'danger' | 'info';
@@ -146,14 +151,14 @@ export class Board {
   }
 
   setPosition(pos: Position, lastMove: LastMove | null = null, animate = true): void {
-    const wasCheck = this.pos?.inCheck() ?? false;
+    const wasCheck = this.pos ? inCheckSafe(this.pos) : false;
     this.pos = pos;
     this.lastMove = lastMove;
     this.selected = null;
     this.userArrows = [];
     this.userCircles.clear();
     this.render(animate);
-    if (animate && pos.inCheck() && !wasCheck) this.pulse(pos.kingSquare(pos.turn), 'check-pulse', 700);
+    if (animate && inCheckSafe(pos) && !wasCheck) this.pulse(pos.kingSquare(pos.turn), 'check-pulse', 700);
     if (animate && lastMove?.promotion) this.pulse(lastMove.to, 'promo-pop', 600);
   }
 
@@ -250,7 +255,7 @@ export class Board {
   private render(animate: boolean): void {
     const pos = this.pos;
     const targets = new Set(this.selected !== null && pos ? pos.legalMoves(this.selected).map((m) => m.to) : []);
-    const checkSq = pos && pos.inCheck() ? pos.kingSquare(pos.turn) : -1;
+    const checkSq = pos && inCheckSafe(pos) ? pos.kingSquare(pos.turn) : -1;
     for (let sq = 0; sq < 64; sq++) {
       const el = this.squares[sq]!;
       el.querySelector('img')?.remove();

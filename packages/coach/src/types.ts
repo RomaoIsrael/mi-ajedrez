@@ -5,7 +5,8 @@
 import type { ConceptMastery, ReviewCard } from '@kavalo/pedagogy';
 import type { DnaValue, GameFeatures } from '@kavalo/dna';
 
-export type ActivityKind = 'lesson' | 'review' | 'puzzle' | 'game' | 'mastery';
+/** `training`: ejercicios de visión, cálculo y coordenadas (cuentan como tiempo de estudio). */
+export type ActivityKind = 'lesson' | 'review' | 'puzzle' | 'game' | 'mastery' | 'training';
 
 /** Evento de aprendizaje (append‑only). Es la fuente de misiones, logros y reportes. */
 export interface ActivityEvent {

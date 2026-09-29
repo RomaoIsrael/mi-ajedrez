@@ -37,8 +37,17 @@ export class Position {
     return Position.fromFen(START_FEN);
   }
 
+  /**
+   * Diagrama didáctico (ejercicios de coordenadas y visión): solo la colocación de piezas, sin
+   * exigir reyes. No se debe usar para jugar: las reglas de jaque necesitan ambos reyes.
+   */
+  static diagram(placement: string, turn: Color = 'w'): Position {
+    const board = Position.fromFen(`${placement.split(' ')[0]} ${turn} - - 0 1`, { diagram: true }).board;
+    return new Position(board, turn, { K: false, Q: false, k: false, q: false }, null, 0, 1);
+  }
+
   /** Crea una posición desde FEN. Lanza Error con mensaje claro si es inválida. */
-  static fromFen(fen: string): Position {
+  static fromFen(fen: string, opts: { diagram?: boolean } = {}): Position {
     const parts = fen.trim().split(/\s+/);
     if (parts.length < 4 || parts.length > 6) throw new Error('FEN inválido: número de campos');
     const [placement, turn, castling, ep, half = '0', full = '1'] = parts as [string, string, string, string, string?, string?];
@@ -72,6 +81,7 @@ export class Position {
     if (!Number.isInteger(halfmove) || halfmove < 0) throw new Error('FEN inválido: medio movimiento');
     if (!Number.isInteger(fullmove) || fullmove < 1) throw new Error('FEN inválido: número de jugada');
 
+    if (opts.diagram) return new Position(board, turn, { K: false, Q: false, k: false, q: false }, null, 0, 1);
     for (const color of ['w', 'b'] as const) {
       const kings = board.filter((p) => p?.type === 'k' && p.color === color).length;
       if (kings !== 1) throw new Error(`FEN inválido: debe haber exactamente un rey ${color === 'w' ? 'blanco' : 'negro'}`);

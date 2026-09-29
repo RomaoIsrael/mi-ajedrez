@@ -11,6 +11,8 @@ export function renderLearn(root: HTMLElement): void {
   const next = nextLesson();
   root.append(screen('Tu camino',
     h('p', { class: 'muted' }, '🔒 no iniciado · ○ introducido · ◐ en aprendizaje · ● comprendido · ★ dominado · ♛ maestría'),
+    h('nav', { class: 'learn-links', 'aria-label': 'Otros módulos' },
+      h('a', { class: 'chip', href: '#/train' }, '🎯 Entrenamiento: visión, cálculo y coordenadas')),
     h('ol', { class: 'map' }, ...SECTIONS.map((s) =>
       h('li', { class: 'map-section' },
         h('h2', {}, h('span', { class: 'map-icon' }, s.icon), s.title),

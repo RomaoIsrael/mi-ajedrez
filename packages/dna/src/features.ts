@@ -72,7 +72,7 @@ function isAttackMove(before: Position, move: PlayedMove['move']): boolean {
 export function extractFeatures(
   review: GameReview,
   history: readonly PlayedMove[],
-  opts: { userColor: Color; result: 'win' | 'loss' | 'draw'; moveTimes?: number[]; clockFractions?: number[] },
+  opts: { userColor: Color; result: 'win' | 'loss' | 'draw'; moveTimes?: (number | null)[]; clockFractions?: (number | null)[] },
 ): GameFeatures {
   const f: GameFeatures = {
     moves: 0, accuracy: empty(), quiet: empty(), forced: empty(), chances: 0, chancesTaken: 0,
@@ -82,9 +82,11 @@ export function extractFeatures(
   };
   const own = review.moves.filter((m) => m.color === opts.userColor);
   const times = opts.moveTimes ?? [];
-  const sorted = [...times].sort((a, b) => a - b);
+  // Las jugadas sin medir (null) —por ejemplo, la línea de apertura ya jugada— no cuentan.
+  const measured = times.filter((t): t is number => typeof t === 'number');
+  const sorted = [...measured].sort((a, b) => a - b);
   const median = sorted.length ? sorted[Math.floor(sorted.length / 2)]! : null;
-  if (times.length) f.avgMoveMs = Math.round(times.reduce((a, b) => a + b, 0) / times.length);
+  if (measured.length) f.avgMoveMs = Math.round(measured.reduce((a, b) => a + b, 0) / measured.length);
 
   own.forEach((m, i) => {
     const played = history[m.ply]!;
@@ -112,10 +114,10 @@ export function extractFeatures(
     if (m.bestCp >= 150) add(f.advantage, m.accuracy);
     if (nonPawnPieces(before) <= 4) add(f.endgame, m.accuracy);
     const t = times[i];
-    if (t !== undefined && median !== null) add(t <= median ? f.fast : f.slow, m.accuracy);
+    if (typeof t === 'number' && median !== null) add(t <= median ? f.fast : f.slow, m.accuracy);
     const clock = opts.clockFractions?.[i];
-    if (clock !== undefined && clock < 0.1) f.timeTroubleMoves++;
-    if ((clock !== undefined && clock < 0.2) || m.bestCp <= -100) add(f.pressure, m.accuracy);
+    if (typeof clock === 'number' && clock < 0.1) f.timeTroubleMoves++;
+    if ((typeof clock === 'number' && clock < 0.2) || m.bestCp <= -100) add(f.pressure, m.accuracy);
   });
   if (f.maxAdvantage === -Infinity) f.maxAdvantage = 0;
   return f;
