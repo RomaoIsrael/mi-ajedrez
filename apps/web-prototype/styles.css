@@ -34,8 +34,8 @@
 }
 
 * { box-sizing: border-box; }
-html { font-size: 100%; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 var(--font-ui); -webkit-font-smoothing: antialiased; }
+html { font-size: var(--text-scale, 100%); }
+body { margin: 0; background: var(--bg); color: var(--text); font: 1rem/1.5 var(--font-ui); -webkit-font-smoothing: antialiased; }
 #app { max-width: 560px; margin: 0 auto; min-height: 100vh; padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
 main { outline: none; }
 a { color: var(--primary); }
@@ -67,7 +67,7 @@ p { margin: .35rem 0; }
 .eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: .72rem; font-weight: 700; color: var(--muted); margin: 0 0 4px; }
 .cta { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
 .cta.sticky { position: sticky; bottom: 84px; }
-.btn { font: 600 .95rem var(--font-ui); border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--surface); color: var(--text); padding: 10px 14px; min-height: 44px; cursor: pointer; }
+.btn { white-space: nowrap; font: 600 .95rem var(--font-ui); border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--surface); color: var(--text); padding: 10px 14px; min-height: 44px; cursor: pointer; }
 .btn:hover { border-color: var(--primary); }
 .btn-primary { background: var(--primary); color: var(--primary-text); border: none; min-height: 52px; font-size: 1rem; letter-spacing: .02em; box-shadow: var(--shadow); }
 .btn:focus-visible, .choice:focus-visible, .seg-btn:focus-visible, a:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; }
@@ -204,3 +204,69 @@ path.arrow-danger { fill: var(--ember); } path.arrow-good { fill: var(--insight)
 .puzzle-prompt { font-weight: 600; }
 .lesson-head { display: flex; gap: 12px; align-items: center; margin-top: 4px; }
 .lesson-head .link { font-size: 1.2rem; text-decoration: none; }
+
+
+/* ───────────── Fase 5: tablero completo ───────────── */
+
+/* Temas de tablero (docs/02-identidad-visual.md §1) */
+:root[data-board-theme="walnut"] { --sq-light: #E8D2B0; --sq-dark: #9C6B45; }
+:root[data-board-theme="marble"] { --sq-light: #F1F0EC; --sq-dark: #A7A9AE; }
+:root[data-board-theme="ocean"] { --sq-light: #DCEAF2; --sq-dark: #4F7C9A; }
+:root[data-board-theme="forest"] { --sq-light: #E3E8D5; --sq-dark: #6F8A5E; }
+:root[data-board-theme="contrast"] { --sq-light: #FFFFFF; --sq-dark: #8A8A8A; }
+:root[data-board-theme="contrast"] .board { outline: 3px solid #000; }
+:root[data-board-theme="contrast"] .coord { font-size: .75rem; }
+
+/* Paletas para daltonismo: el significado nunca depende solo del color (siempre hay icono y texto). */
+:root[data-cb="deutan"] { --insight: #3A86FF; --ember: #FF8C00; --good: #2F6FDB; --bad: #D46F00; --primary: #2F6FDB; }
+:root[data-cb="tritan"] { --insight: #009E73; --ember: #D55E00; --good: #00805D; --bad: #C24F00; --primary: #00805D; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* Cursor de teclado */
+.board-grid:focus { outline: none; }
+.board-grid:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px; }
+.sq.kbd-cursor::after { content: ""; position: absolute; inset: 2px; border: 3px dashed var(--sky); border-radius: 4px; pointer-events: none; z-index: 4; }
+
+/* Anotaciones del usuario */
+line.arrow-user { stroke: var(--brass); } path.arrow-user { fill: var(--brass); }
+.user-circle { fill: none; stroke-width: .07; opacity: .9; }
+circle.arrow-user { stroke: var(--brass); } circle.arrow-danger { stroke: var(--ember); } circle.arrow-info { stroke: var(--sky); }
+.board.drawing { box-shadow: 0 0 0 3px var(--brass), var(--shadow); }
+.board.drawing .sq { cursor: crosshair; }
+
+/* Animaciones discretas (brief §38) */
+@keyframes check-pulse { 0% { box-shadow: inset 0 0 0 0 rgba(228, 87, 46, .9); } 50% { box-shadow: inset 0 0 0 6px rgba(228, 87, 46, .9); } 100% { box-shadow: inset 0 0 0 0 rgba(228, 87, 46, 0); } }
+.sq.check-pulse { animation: check-pulse .6s ease-out 1; }
+@keyframes flash { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
+.sq.flash-good::after, .sq.flash-brilliant::after, .sq.flash-bad::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 3; animation: flash .7s ease-out 1; }
+.sq.flash-good::after { background: radial-gradient(circle, color-mix(in srgb, var(--insight) 70%, transparent), transparent 70%); }
+.sq.flash-brilliant::after { background: radial-gradient(circle, color-mix(in srgb, var(--brass) 85%, transparent), transparent 72%); }
+.sq.flash-bad::after { background: radial-gradient(circle, color-mix(in srgb, var(--ember) 70%, transparent), transparent 70%); }
+@keyframes promo-pop { 0% { transform: scale(.4); filter: drop-shadow(0 0 0 var(--brass)); } 60% { transform: scale(1.15); filter: drop-shadow(0 0 6px var(--brass)); } 100% { transform: scale(1); } }
+.sq.promo-pop .piece { animation: promo-pop .5s ease-out 1; }
+.sq.mated .piece { transform: rotate(-35deg) translateY(8%); transition: transform .6s ease-in; filter: grayscale(.4); }
+@keyframes mate-glow { 0% { box-shadow: 0 0 0 0 var(--brass); } 40% { box-shadow: 0 0 26px 6px var(--brass); } 100% { box-shadow: var(--shadow); } }
+.board.mate-glow { animation: mate-glow 1.2s ease-out 1; }
+.reduce-motion .sq.mated .piece { transition: none; }
+
+/* Navegación por jugadas */
+.navigator { display: flex; align-items: center; gap: 6px; margin: 6px 0; }
+.nav-btn { min-width: 44px; padding: 8px 0; font-size: 1rem; }
+.nav-btn:disabled { opacity: .4; cursor: default; }
+.nav-label { flex: 1; text-align: center; font: 600 .85rem var(--font-mono); color: var(--muted); }
+.analysis-tools { display: flex; gap: 8px; align-items: center; }
+.analysis-tools .navigator { flex: 1; }
+.review-banner { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: color-mix(in srgb, var(--sky) 20%, transparent); border-radius: var(--radius-sm); padding: 6px 10px; font-size: .9rem; }
+.mv-btn { background: none; border: none; padding: 1px 4px; border-radius: 4px; font: inherit; color: inherit; cursor: pointer; }
+.mv-btn:hover { background: var(--surface-2); }
+.mv-current { background: color-mix(in srgb, var(--brass) 35%, transparent); }
+.btn.on { background: var(--brass); color: var(--ink-900); border-color: var(--brass); }
+
+/* Entrada escrita de jugadas */
+.move-entry { margin: 8px 0; }
+.move-entry summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
+.move-entry-row { display: flex; gap: 8px; margin-top: 6px; }
+.move-entry-row .input { flex: 1; font-family: var(--font-mono); }
+
+.board-preview { max-width: 220px; margin: 8px 0; }

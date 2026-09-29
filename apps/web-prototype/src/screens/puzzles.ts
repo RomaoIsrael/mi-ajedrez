@@ -2,11 +2,13 @@
  * Puzzles adaptativos: primero los repasos vencidos de posiciones de TUS partidas,
  * después puzzles originales según conceptos débiles y rating.
  */
-import { Game, localizeSan, moveToSan, parseMove, Position } from '@kavalo/chess-core';
+import { Game, localizeSan, moveToSan, parseMove, Position, type PieceType } from '@kavalo/chess-core';
 import { conceptById, pickPuzzle, PUZZLES } from '@kavalo/content';
 import { dueCards, gradeAttempt } from '@kavalo/pedagogy';
 import { hintLadder, type HintLadder } from '@kavalo/tactics';
 import { Board } from '../components/board.js';
+import { drawToggle, moveInput } from '../components/board-tools.js';
+import { cue } from '../feedback.js';
 import { coachBubble } from '../components/coach.js';
 import { append, button, h, navigate, primaryButton, screen } from '../dom.js';
 import { mistakeStats } from '../state/insights.js';
@@ -40,8 +42,11 @@ export function renderPuzzles(root: HTMLElement, [conceptFilter]: string[]): voi
   const board = new Board({ coordinates: profile.settings.coordinates, reduceMotion: profile.settings.reduceMotion });
   const head = h('div', {});
   const panel = h('div', {});
+  let current: Game | null = null;
+  let submitMove: ((from: number, to: number, promotion?: PieceType) => boolean) | null = null;
+  const entry = moveInput(() => current?.position ?? null, (m) => submitMove?.(m.from, m.to, m.promotion) ?? false);
   const filterTitle = conceptFilter ? conceptById(conceptFilter)?.title : null;
-  root.append(screen(filterTitle ? `Puzzles · ${filterTitle}` : 'Puzzles', h('p', { class: 'muted small' }, `Rating de puzzles: `, h('strong', { id: 'prating' }, String(profile.puzzleRating))), head, h('div', { class: 'board-holder' }, board.el), panel));
+  root.append(screen(filterTitle ? `Puzzles · ${filterTitle}` : 'Puzzles', h('p', { class: 'muted small' }, `Rating de puzzles: `, h('strong', { id: 'prating' }, String(profile.puzzleRating))), head, h('div', { class: 'board-holder' }, board.el), panel, entry));
 
   const load = () => {
     const item = nextItem(conceptFilter, seen);
@@ -58,6 +63,7 @@ export function renderPuzzles(root: HTMLElement, [conceptFilter]: string[]): voi
 
   function play(item: Item) {
     const game = new Game(item.fen);
+    current = game;
     const start = performance.now();
     let hints = 0;
     let sawSolution = false;
@@ -86,30 +92,34 @@ export function renderPuzzles(root: HTMLElement, [conceptFilter]: string[]): voi
       board.setArrows([{ from: m.from, to: m.to, color: 'good' }]);
       panel.replaceChildren(coachBubble([h('p', {}, `${localizeSan(moveToSan(game.position, m), 'es')}. ${item.explanation ?? ''}`)]), actions());
     });
-    const actions = () => h('div', { class: 'game-actions' }, hintBtn, solutionBtn, button('Saltar', load));
+    const draw = drawToggle(board);
+    const actions = () => h('div', { class: 'game-actions' }, hintBtn, solutionBtn, draw, button('Saltar', load));
     panel.replaceChildren(actions());
 
-    board.setInteraction({
-      movable: () => game.position.turn,
-      onMove: (from, to, promotion) => {
+    const onMove = (from: number, to: number, promotion?: PieceType) => {
         const before = game.position;
         const played = game.move({ from, to, promotion });
         if (!played) return false;
         board.setPosition(game.position, { from, to });
         const ok = item.accept.includes(played.uci);
         if (ok) {
+          cue('success');
+          board.flash(to, 'good');
+          if (game.status().reason === 'checkmate') board.celebrateMate(game.position.kingSquare(game.position.turn));
           board.setHighlights([to], 'good');
           board.setInteraction({});
           finish(true);
         } else {
           wrong++;
+          cue('error');
           board.setHighlights([to], 'bad');
           panel.replaceChildren(coachBubble([h('p', { class: 'msg msg-bad' }, 'No es la mejor jugada. Revisa jaques, capturas y amenazas en ese orden.')]), actions());
           setTimeout(() => { game.undo(); board.setPosition(before, null, false); board.clearMarks(); }, 800);
         }
         return true;
-      },
-    });
+    };
+    submitMove = onMove;
+    board.setInteraction({ movable: () => game.position.turn, onMove });
 
     function finish(correct: boolean) {
       const ms = performance.now() - start;

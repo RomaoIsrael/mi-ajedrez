@@ -1,7 +1,10 @@
 /** Perfil y configuración: tema, coach, ayudas, accesibilidad y privacidad (exportar / borrar). */
+import { Position } from '@kavalo/chess-core';
+import { Board } from '../components/board.js';
 import { COACHES } from '../components/coach.js';
+import { cue } from '../feedback.js';
 import { button, h, navigate, screen } from '../dom.js';
-import { profile, resetProfile, save, type CoachStyle, type HelpLevel } from '../state/store.js';
+import { profile, resetProfile, save, type BoardTheme, type CoachStyle, type HelpLevel } from '../state/store.js';
 import { applyTheme } from '../theme.js';
 
 export function renderSettings(root: HTMLElement): void {
@@ -16,6 +19,10 @@ export function renderSettings(root: HTMLElement): void {
     input.addEventListener('change', () => { set(input.checked); rerender(); });
     return h('label', { class: 'field field-inline' }, input, h('span', {}, label));
   };
+  const preview = new Board({ coordinates: profile.settings.coordinates, reduceMotion: true });
+  preview.setPosition(Position.fromFen('r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3'), { from: 57, to: 42 }, false);
+  preview.setHighlights([28], 'hint');
+  preview.setArrows([{ from: 21, to: 36, color: 'good' }]);
   const nameInput = h('input', { class: 'input', value: profile.name, maxlength: 30, 'aria-label': 'Nombre' });
   nameInput.addEventListener('change', () => { profile.name = nameInput.value.trim(); save(); });
 
@@ -27,10 +34,21 @@ export function renderSettings(root: HTMLElement): void {
     h('div', { class: 'card' }, h('h2', {}, 'Ayudas'),
       select<HelpLevel>('Nivel de explicaciones', profile.settings.helpLevel, [['auto', 'Automático (según tu nivel)'], ['beginner', 'Principiante'], ['intermediate', 'Intermedio'], ['advanced', 'Avanzado']], (v) => { profile.settings.helpLevel = v; }),
       h('p', { class: 'muted small' }, 'Las ayudas se retiran progresivamente a medida que dejas de necesitarlas.')),
+    h('div', { class: 'card' }, h('h2', {}, 'Tablero'),
+      select<BoardTheme>('Tema del tablero', profile.settings.boardTheme, [
+        ['slate', 'Pizarra y marfil'], ['walnut', 'Nogal'], ['marble', 'Mármol'], ['ocean', 'Océano'], ['forest', 'Bosque'], ['contrast', 'Alto contraste'],
+      ], (v) => { profile.settings.boardTheme = v; }),
+      h('div', { class: 'board-preview' }, preview.el),
+      toggle('Mostrar coordenadas', profile.settings.coordinates, (v) => { profile.settings.coordinates = v; }),
+      h('p', { class: 'muted small' }, 'Dibuja flechas con clic derecho y arrastrando; clic derecho en una casilla para marcarla con un círculo (Mayús = rojo, Alt = azul). En móvil, usa el botón «Dibujar».')),
     h('div', { class: 'card' }, h('h2', {}, 'Apariencia y accesibilidad'),
       select('Tema', profile.settings.theme, [['system', 'Según el sistema'], ['light', 'Claro'], ['dark', 'Oscuro']], (v) => { profile.settings.theme = v; }),
-      toggle('Mostrar coordenadas', profile.settings.coordinates, (v) => { profile.settings.coordinates = v; }),
+      select('Tamaño del texto', String(profile.settings.textScale), [['100', '100 %'], ['115', '115 %'], ['130', '130 %'], ['150', '150 %'], ['175', '175 %'], ['200', '200 %']], (v) => { profile.settings.textScale = Number(v); }),
+      select('Colores para daltonismo', profile.settings.colorblind, [['none', 'Estándar'], ['deutan', 'Deuteranopía / protanopía (azul y naranja)'], ['tritan', 'Tritanopía (verde y rojo anaranjado)']], (v) => { profile.settings.colorblind = v; }),
       toggle('Reducir animaciones', profile.settings.reduceMotion, (v) => { profile.settings.reduceMotion = v; }),
+      toggle('Sonidos', profile.settings.sound, (v) => { profile.settings.sound = v; if (v) setTimeout(() => cue('success'), 50); }),
+      'vibrate' in navigator ? toggle('Vibración', profile.settings.vibration, (v) => { profile.settings.vibration = v; }) : null,
+      h('p', { class: 'muted small' }, 'Teclado: Tab hasta el tablero, flechas para moverte, Enter para elegir pieza y destino, Esc para cancelar; ← → para revisar jugadas. También puedes escribir la jugada (Cf3, e4, O-O).'),
       h('label', { class: 'field' }, h('span', {}, 'Set de piezas'), h('select', { class: 'input', disabled: true }, h('option', {}, 'Royal Modern (otros sets: próximamente)')))),
     h('div', { class: 'card' }, h('h2', {}, 'Privacidad'),
       h('p', { class: 'muted small' }, 'Todo se guarda solo en este navegador. Nada se envía a ningún servidor.'),

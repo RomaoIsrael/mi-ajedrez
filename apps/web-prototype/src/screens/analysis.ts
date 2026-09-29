@@ -4,6 +4,7 @@ import { conceptById, LESSONS } from '@kavalo/content';
 import { analyzeMove, explain, hintLadder, moveEffects, SEVERITY_LABEL, SEVERITY_SYMBOL, type MoveAnalysis } from '@kavalo/tactics';
 import { bestMove } from '@kavalo/bots';
 import { Board } from '../components/board.js';
+import { drawToggle, moveNavigator } from '../components/board-tools.js';
 import { coachBubble } from '../components/coach.js';
 import { button, h, navigate, primaryButton, screen } from '../dom.js';
 import { explanationLevel, mastery, profile } from '../state/store.js';
@@ -12,7 +13,7 @@ interface Row { ply: number; played: PlayedMove; analysis: MoveAnalysis }
 
 const RANK = { excellent: 0, good: 1, ok: 2, inaccuracy: 3, mistake: 4, blunder: 5 } as const;
 
-export function renderAnalysis(root: HTMLElement, [id]: string[]): void {
+export function renderAnalysis(root: HTMLElement, [id]: string[]): void | (() => void) {
   const record = profile.games.find((g) => g.id === id);
   if (!record) {
     root.append(screen('Partida no encontrada', primaryButton('Volver', () => navigate('#/progress'))));
@@ -47,8 +48,24 @@ export function renderAnalysis(root: HTMLElement, [id]: string[]): void {
   const title = record.userResult === 'win' ? 'Victoria' : record.userResult === 'draw' ? 'Tablas' : 'Derrota';
   const study = learnRow?.analysis.concept ? conceptById(learnRow.analysis.concept) : undefined;
 
-  const showRow = (r: Row, heading: string) => {
-    board.setPosition(r.played.before, null, false);
+  const total = game.history.length + 1;
+  const nav = moveNavigator((ply) => goto(ply));
+
+  /** Navegación libre: muestra la posición tras `ply` medias jugadas y, si te toca, analiza tu jugada. */
+  const goto = (ply: number) => {
+    const row = rows.find((r) => r.ply === ply);
+    if (row) return showRow(row, SEVERITY_LABEL.es[row.analysis.severity], false);
+    const played = game.history[ply - 1];
+    board.clearMarks();
+    board.setPosition(ply === 0 ? game.history[0]!.before : played!.after, played ? { from: played.move.from, to: played.move.to } : null, false);
+    detail.replaceChildren(played ? coachBubble([h('p', { class: 'muted' }, `${Math.floor((ply - 1) / 2) + 1}${played.move.color === 'w' ? '.' : '…'} ${localizeSan(played.san, 'es')} — jugada del rival.`)]) : '');
+    nav.update(total, ply);
+  };
+
+  const showRow = (r: Row, heading: string, scroll = true) => {
+    nav.update(total, r.ply);
+    board.clearMarks();
+    board.setPosition(r.played.before, r.ply > 0 ? { from: game.history[r.ply - 1]!.move.from, to: game.history[r.ply - 1]!.move.to } : null, false);
     const e = explain(r.analysis, { level: explanationLevel() });
     const moveLabel = `${Math.floor(r.ply / 2) + 1}${r.played.move.color === 'w' ? '.' : '…'} ${localizeSan(r.played.san, 'es')}`;
     board.setArrows([{ from: r.played.move.from, to: r.played.move.to, color: RANK[r.analysis.severity] >= 3 ? 'danger' : 'good' }]);
@@ -81,7 +98,7 @@ export function renderAnalysis(root: HTMLElement, [id]: string[]): void {
       h('h3', { class: `exp-title sev-${r.analysis.severity}` }, `${moveLabel} ${SEVERITY_SYMBOL[r.analysis.severity]} · ${e.title}`),
       ...[e.why, e.consequence, e.whatToNotice].filter(Boolean).map((t) => h('p', {}, t!)),
     ], acts));
-    detail.scrollIntoView({ behavior: profile.settings.reduceMotion ? 'auto' : 'smooth', block: 'nearest' });
+    if (scroll) detail.scrollIntoView({ behavior: profile.settings.reduceMotion ? 'auto' : 'smooth', block: 'nearest' });
   };
 
   const momentCard = (icon: string, label: string, r: Row | undefined, empty: string) =>
@@ -97,6 +114,7 @@ export function renderAnalysis(root: HTMLElement, [id]: string[]): void {
     momentCard('⚠', 'Momento 2 · Aquí empezó el problema', firstError, 'No hubo errores graves. ¡Bien!'),
     momentCard('🎯', 'Momento 3 · Esto debes aprender', learnRow, 'Sigue practicando para detectar tu siguiente reto.'),
     h('div', { class: 'board-holder' }, board.el),
+    h('div', { class: 'analysis-tools' }, nav.el, drawToggle(board)),
     detail,
     h('details', { class: 'card' }, h('summary', {}, 'Ver todas tus jugadas'),
       h('ol', { class: 'movelist' }, ...rows.map((r) => h('li', {},
@@ -110,6 +128,7 @@ export function renderAnalysis(root: HTMLElement, [id]: string[]): void {
       button('Copiar PGN', () => { void navigator.clipboard?.writeText(record.pgn); })),
   ));
   const initial = learnRow ?? firstError ?? bestRow;
-  if (initial) showRow(initial, initial === learnRow ? 'Momento 3 · Esto debes aprender' : initial === firstError ? 'Momento 2 · Aquí empezó el problema' : 'Momento 1 · Lo hiciste muy bien');
-  else board.setPosition(game.position, null, false);
+  if (initial) showRow(initial, initial === learnRow ? 'Momento 3 · Esto debes aprender' : initial === firstError ? 'Momento 2 · Aquí empezó el problema' : 'Momento 1 · Lo hiciste muy bien', false);
+  else goto(game.history.length);
+  return () => nav.destroy();
 }

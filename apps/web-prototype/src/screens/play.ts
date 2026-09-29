@@ -9,6 +9,8 @@ import {
   type HintLadder, type MoveAnalysis,
 } from '@kavalo/tactics';
 import { Board } from '../components/board.js';
+import { drawToggle, moveInput, moveNavigator } from '../components/board-tools.js';
+import { cue, moveCue } from '../feedback.js';
 import { coachBubble, explanationCard } from '../components/coach.js';
 import { button, h, navigate, primaryButton, screen } from '../dom.js';
 import { KIND_LABEL } from '../state/insights.js';
@@ -19,6 +21,7 @@ import {
 
 interface Setup { personality: Personality; level: number; color: 'w' | 'b' | 'random'; clock: string; coach: boolean; checklist: boolean }
 
+let levelChosen = false;
 const setup: Setup = { personality: 'nova', level: 1, color: 'w', clock: 'none', coach: true, checklist: true };
 const CLOCKS: Record<string, { label: string; base: number; inc: number } | null> = {
   none: null, '10+0': { label: '10+0', base: 600, inc: 0 }, '15+10': { label: '15+10', base: 900, inc: 10 }, '30': { label: '30 min', base: 1800, inc: 0 },
@@ -26,7 +29,11 @@ const CLOCKS: Record<string, { label: string; base: number; inc: number } | null
 
 export function renderPlaySetup(root: HTMLElement): void {
   const recommendedLevel = BOT_LEVELS.reduce((best, l) => (Math.abs(l.elo - profile.gameRating) < Math.abs(best.elo - profile.gameRating) ? l : best)).level;
-  if (setup.level === 1 && recommendedLevel > 1) setup.level = recommendedLevel;
+  // La recomendación se aplica una sola vez; después manda la elección del usuario.
+  if (!levelChosen) {
+    setup.level = recommendedLevel;
+    levelChosen = true;
+  }
 
   const group = (label: string, items: HTMLElement[]) => h('fieldset', { class: 'group' }, h('legend', {}, label), h('div', { class: 'seg' }, ...items));
   const seg = <T extends string | number | boolean>(key: keyof Setup, value: T, label: string, extra = '') => {
@@ -90,10 +97,12 @@ export function renderGame(root: HTMLElement): () => void {
   let thinking = false;
   let lastBotMove: { before: Game['position']; move: Game['history'][number]['move'] } | null = null;
   let timer = 0;
+  /** Jugada que se está revisando con ◀ ▶ (null = posición actual, se puede jugar). */
+  let viewing: number | null = null;
 
   const board = new Board({
     orientation: s.user, coordinates: profile.settings.coordinates, reduceMotion: profile.settings.reduceMotion,
-    movable: () => (thinking || s.game.status().over ? null : s.user),
+    movable: () => (thinking || viewing !== null || s.game.status().over ? null : s.user),
     onMove: onUserMove,
   });
   const coachPanel = h('div', { class: 'game-coach' });
@@ -104,6 +113,12 @@ export function renderGame(root: HTMLElement): () => void {
     h('div', { class: 'checks' }, ...['Jaques', 'Capturas', 'Amenazas', 'Piezas indefensas', 'Seguridad del rey', 'Respuesta del rival'].map((c) =>
       h('label', {}, h('input', { type: 'checkbox' }), ` ${c}`))));
   const opp = s.user === 'w' ? 'b' : 'w';
+  const nav = moveNavigator((i) => showPly(i));
+  const reviewBanner = h('div', { class: 'review-banner', hidden: true },
+    h('span', {}, 'Estás revisando una jugada anterior.'),
+    h('button', { class: 'link', onclick: (() => showPly(s.game.history.length)) as EventListener }, 'Volver a la posición actual'));
+  const entry = moveInput(() => (viewing === null && !thinking && s.game.position.turn === s.user ? s.game.position : null),
+    (m) => onUserMove(m.from, m.to, m.promotion));
 
   const hintBtn = button('Pista', () => showHint());
   const undoBtn = button('Deshacer', () => undo());
@@ -111,20 +126,26 @@ export function renderGame(root: HTMLElement): () => void {
     s.setup.coach ? hintBtn : null,
     s.setup.coach ? undoBtn : null,
     button('Girar', () => board.flip()),
+    drawToggle(board),
     button('Rendirse', () => { if (confirm('¿Seguro que quieres rendirte?')) { s.game.resign(s.user); end(); } }));
 
   root.append(screen(null,
     h('div', { class: 'player-bar' }, h('span', {}, h('strong', {}, bot.name), ` · ${bot.style.es.split(' · ')[0]} · Nivel ${level.level}`), clockEl[opp]),
     h('div', { class: 'board-holder' }, board.el),
     h('div', { class: 'player-bar' }, h('span', {}, h('strong', {}, profile.name || 'Tú')), clockEl[s.user]),
-    actions, coachPanel, checklist, moveList));
+    reviewBanner, nav.el, actions, coachPanel, entry, checklist, moveList));
 
   const say = (nodes: (Node | string)[], acts: HTMLElement[] = []) => coachPanel.replaceChildren(coachBubble(nodes, acts));
 
   function refresh(animate = true) {
     const last = s.game.history.at(-1);
+    viewing = null;
+    reviewBanner.hidden = true;
     board.clearMarks();
-    board.setPosition(s.game.position, last ? { from: last.move.from, to: last.move.to } : null, animate);
+    board.setPosition(s.game.position, last ? { from: last.move.from, to: last.move.to, promotion: !!last.move.promotion } : null, animate);
+    if (last && animate) moveCue(last, s.game.status());
+    if (s.game.status().reason === 'checkmate') board.celebrateMate(s.game.position.kingSquare(s.game.position.turn));
+    nav.update(s.game.history.length + 1, s.game.history.length);
     renderMoves();
     renderClocks();
     ladder = null;
@@ -139,9 +160,30 @@ export function renderGame(root: HTMLElement): () => void {
       const sym = a && p.move.color === s.user ? SEVERITY_SYMBOL[a.severity] : '';
       const label = `${localizeSan(p.san, 'es')}${sym && !['✓', '👍'].includes(sym) ? sym : ''}`;
       if (p.move.color === 'w' || i === 0) moveList.append(h('li', {}, h('span', { class: 'mv-no' }, `${Math.floor(i / 2) + 1}.`)));
-      moveList.lastElementChild!.append(h('span', { class: `mv sev-${a?.severity ?? 'none'}` }, label));
+      const current = viewing === null ? i === s.game.history.length - 1 : i === viewing - 1;
+      moveList.lastElementChild!.append(h('button', {
+        class: `mv mv-btn sev-${a?.severity ?? 'none'}${current ? ' mv-current' : ''}`,
+        'aria-current': current ? 'true' : undefined, onclick: (() => showPly(i + 1)) as EventListener,
+      }, label));
     });
-    moveList.scrollTop = moveList.scrollHeight;
+    if (viewing === null) moveList.scrollTop = moveList.scrollHeight;
+  }
+
+  /** Muestra la posición tras `ply` medias jugadas (0 = inicio). La actual permite jugar. */
+  function showPly(ply: number) {
+    if (thinking) return;
+    if (ply >= s.game.history.length) {
+      if (viewing !== null) refresh(false);
+      return;
+    }
+    viewing = ply;
+    const played = s.game.history[ply - 1];
+    const pos = ply === 0 ? (s.game.history[0]?.before ?? s.game.position) : played!.after;
+    board.clearMarks();
+    board.setPosition(pos, played ? { from: played.move.from, to: played.move.to } : null, false);
+    reviewBanner.hidden = false;
+    nav.update(s.game.history.length + 1, ply);
+    renderMoves();
   }
 
   function renderClocks() {
@@ -180,6 +222,8 @@ export function renderGame(root: HTMLElement): () => void {
     if (s.game.status().over) return end(), true;
 
     const bad = analysis.severity === 'mistake' || analysis.severity === 'blunder';
+    if (bad) cue('error');
+    else if (analysis.severity === 'excellent' || analysis.severity === 'good') board.flash(to, analysis.severity === 'excellent' ? 'brilliant' : 'good');
     if (s.setup.coach && bad) {
       const e = explain(analysis, { level: explanationLevel(), memoryStage: stage });
       board.setArrows(e.arrows);
@@ -297,7 +341,8 @@ export function renderGame(root: HTMLElement): () => void {
   }
 
   refresh(false);
+  board.focus();
   if (s.game.position.turn !== s.user) botMove();
   else if (s.setup.coach) say(['Tú empiezas. Recuerda: centro, desarrollo y rey seguro.']);
-  return () => window.clearInterval(timer);
+  return () => { window.clearInterval(timer); nav.destroy(); };
 }

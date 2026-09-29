@@ -2,6 +2,7 @@
 import { Game, parseSquare, Position, squareName, type Square } from '@kavalo/chess-core';
 import { lessonById, PUZZLES, type LessonStep } from '@kavalo/content';
 import { Board } from '../components/board.js';
+import { cue } from '../feedback.js';
 import { coachBubble, COACHES } from '../components/coach.js';
 import { button, h, navigate, primaryButton, screen } from '../dom.js';
 import { addEvidence, profile, recordLearning, save } from '../state/store.js';
@@ -24,7 +25,13 @@ export function renderLesson(root: HTMLElement, [id]: string[]): void {
 
   const setInteraction = (o: Parameters<Board['setInteraction']>[0]) => board.setInteraction(o);
 
+  const goodBubble = (text: string) => {
+    cue('success');
+    return coachBubble([h('p', { class: 'msg msg-good' }, text)]);
+  };
+
   const message = (text: string, kind: 'info' | 'good' | 'bad' = 'info', actions: HTMLElement[] = []) => {
+    if (kind === 'bad') cue('error');
     panel.replaceChildren(coachBubble([h('p', { class: `msg msg-${kind}` }, text)], actions));
   };
 
@@ -65,7 +72,7 @@ export function renderLesson(root: HTMLElement, [id]: string[]): void {
               found.add(sq);
               board.addHighlight(sq, 'good');
               if (found.size === answer.size) {
-                panel.replaceChildren(coachBubble([h('p', { class: 'msg msg-good' }, step.success)]), continueBtn());
+                panel.replaceChildren(goodBubble(step.success), continueBtn());
                 setInteraction({});
               } else if (answer.size > 1) {
                 message(`${step.text} (${found.size}/${answer.size})`, 'good');
@@ -93,7 +100,7 @@ export function renderLesson(root: HTMLElement, [id]: string[]): void {
             if (step.accept.includes(played.uci)) {
               board.setHighlights([to], 'good');
               setInteraction({});
-              panel.replaceChildren(coachBubble([h('p', { class: 'msg msg-good' }, step.success)]), continueBtn());
+              panel.replaceChildren(goodBubble(step.success), continueBtn());
             } else {
               mistakes++;
               board.setHighlights([to], 'bad');
@@ -124,7 +131,7 @@ export function renderLesson(root: HTMLElement, [id]: string[]): void {
             if (to === target) {
               board.setHighlights([target], 'good');
               setInteraction({});
-              panel.replaceChildren(coachBubble([h('p', { class: 'msg msg-good' }, step.success)]), continueBtn());
+              panel.replaceChildren(goodBubble(step.success), continueBtn());
             } else if (used >= step.maxMoves) {
               mistakes++;
               message(step.wrong, 'bad', [button('Reintentar', () => show())]);
@@ -146,6 +153,7 @@ export function renderLesson(root: HTMLElement, [id]: string[]): void {
         const answer = (i: number) => {
           const ok = i === step.answer;
           if (!ok) mistakes++;
+          cue(ok ? 'success' : 'error');
           options.forEach((b, j) => { b.disabled = true; b.classList.toggle('choice-good', j === step.answer); b.classList.toggle('choice-bad', j === i && !ok); });
           panel.append(coachBubble([h('p', { class: `msg msg-${ok ? 'good' : 'bad'}` }, `${ok ? '¡Correcto! ' : 'No exactamente. '}${step.explanation}`)]), continueBtn());
         };

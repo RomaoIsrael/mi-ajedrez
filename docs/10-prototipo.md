@@ -73,8 +73,8 @@ Tablero.onMove → Game.move → analyzeMove(antes, jugada)   ← hechos determi
 ```bash
 npm install --offline   # solo crea los enlaces de los paquetes del monorepo
 npm start               # compila y sirve en http://localhost:5173
-npm test                # 68 pruebas (reglas con perft, tácticas, bots, pedagogía, contenido)
-npm run test:e2e        # recorrido completo con Playwright (con el servidor arrancado)
+npm test                # 69 pruebas (reglas con perft, tácticas, bots, pedagogía, contenido)
+npm run test:e2e        # recorridos completos con Playwright (con el servidor arrancado)
 ```
 
 ## Limitaciones conocidas (se resuelven en fases posteriores)

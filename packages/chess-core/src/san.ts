@@ -66,3 +66,57 @@ export function localizeSan(san: string, locale: string): string {
   if (!map || san.startsWith('O-O')) return san;
   return san.replace(/^[NBRQK]/, (l) => map[l] ?? l).replace(/=([NBRQ])/, (_, l: string) => `=${map[l] ?? l}`);
 }
+
+const PIECE_WORDS: Record<string, string> = {
+  caballo: 'N', alfil: 'B', torre: 'R', dama: 'Q', reina: 'Q', rey: 'K', peon: '', 'peón': '',
+  knight: 'N', bishop: 'B', rook: 'R', queen: 'Q', king: 'K', pawn: '',
+};
+const ES_TO_EN: Record<string, string> = { C: 'N', A: 'B', T: 'R', D: 'Q', R: 'K' };
+
+function normalizeSpaces(text: string): string {
+  return text.trim().replace(/[–—]/g, '-').replace(/\s+/g, ' ');
+}
+
+/** Candidatos SAN en inglés a partir de lo que escribe (o dicta) el usuario. */
+function candidates(text: string, locale: string): string[] {
+  let t = normalizeSpaces(text);
+  const out: string[] = [];
+  // UCI con guion o espacio: "e2-e4", "e2 e4", "e7e8=q"
+  const uci = /^([a-h][1-8])\s*[-x ]?\s*([a-h][1-8])\s*=?\s*([qrbnQRBNdtacDTAC])?$/.exec(t);
+  if (uci) {
+    const promo = uci[3] ? ({ d: 'q', t: 'r', a: 'b', c: 'n' } as Record<string, string>)[uci[3].toLowerCase()] ?? uci[3].toLowerCase() : '';
+    out.push(`${uci[1]}${uci[2]}${promo}`);
+  }
+  // Palabras: "caballo f3", "caballo por e5", "caballo g1 f3", "dama x d8"
+  const words = t.toLowerCase().split(' ');
+  if (words[0] && words[0] in PIECE_WORDS) {
+    const letter = PIECE_WORDS[words[0]]!;
+    const rest = words.slice(1).filter((w) => w !== 'a' && w !== 'to' && w !== 'en').join('')
+      .replace(/^(por|captura|takes)/, 'x').replace(/(por|captura|takes)/, 'x');
+    out.push(`${letter}${rest}`);
+  }
+  t = t.replace(/ /g, '');
+  // Orden de preferencia: letras españolas en mayúscula → texto tal cual (así "cxd4" es el
+  // peón c, nunca el caballo) → letras en minúscula como pieza → SAN inglés capitalizado.
+  if (locale === 'es') {
+    out.push(t.replace(/^[CATDR](?=[a-h1-8x])/, (l) => ES_TO_EN[l]!).replace(/=([CATD])/, (_, l: string) => `=${ES_TO_EN[l]}`));
+  }
+  out.push(t);
+  if (locale === 'es') {
+    out.push(t.replace(/^[catdr](?=[a-h]?[1-8]?x?[a-h][1-8])/, (l) => ES_TO_EN[l.toUpperCase()]!).replace(/=([catd])/i, (_, l: string) => `=${ES_TO_EN[l.toUpperCase()]}`));
+  }
+  out.push(t.replace(/^[nbrqk](?=[a-h1-8x])/, (l) => l.toUpperCase()));
+  return [...new Set(out)];
+}
+
+/**
+ * Interpreta una jugada escrita por el usuario: SAN español ("Cf3", "Axe5+", "e8=D"),
+ * SAN inglés, UCI ("g1f3", "e2-e4"), enroques ("0-0") o palabras ("caballo f3").
+ */
+export function parseUserMove(pos: Position, text: string, locale = 'es'): Move | null {
+  for (const c of candidates(text, locale)) {
+    const m = parseMove(pos, c);
+    if (m) return m;
+  }
+  return null;
+}

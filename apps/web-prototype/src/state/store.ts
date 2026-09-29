@@ -11,6 +11,7 @@ import {
 export type Experience = 'never' | 'rules' | 'occasional' | 'frequent' | 'club' | 'competitive';
 export type CoachStyle = 'mentor' | 'master' | 'friend' | 'tactician' | 'motivator';
 export type HelpLevel = 'auto' | 'beginner' | 'intermediate' | 'advanced';
+export type BoardTheme = 'slate' | 'walnut' | 'marble' | 'ocean' | 'forest' | 'contrast';
 
 export interface MistakeRecord {
   at: number;
@@ -53,7 +54,17 @@ export interface Profile {
   goal: string;
   dailyMinutes: number;
   coachStyle: CoachStyle;
-  settings: { theme: 'system' | 'light' | 'dark'; coordinates: boolean; reduceMotion: boolean; helpLevel: HelpLevel; sound: boolean };
+  settings: {
+    theme: 'system' | 'light' | 'dark';
+    coordinates: boolean;
+    reduceMotion: boolean;
+    helpLevel: HelpLevel;
+    sound: boolean;
+    vibration: boolean;
+    boardTheme: BoardTheme;
+    colorblind: 'none' | 'deutan' | 'tritan';
+    textScale: number;
+  };
   xp: number;
   streak: { current: number; best: number; lastDay: string | null };
   gameRating: number;
@@ -72,7 +83,10 @@ const KEY = 'kavalo.profile.v1';
 function defaults(): Profile {
   return {
     version: 1, onboarded: false, name: '', experience: 'never', goal: 'learn', dailyMinutes: 20, coachStyle: 'mentor',
-    settings: { theme: 'system', coordinates: true, reduceMotion: false, helpLevel: 'auto', sound: false },
+    settings: {
+      theme: 'system', coordinates: true, reduceMotion: false, helpLevel: 'auto', sound: false, vibration: false,
+      boardTheme: 'slate', colorblind: 'none', textScale: 100,
+    },
     xp: 0, streak: { current: 0, best: 0, lastDay: null }, gameRating: 400, puzzleRating: 400,
     completedLessons: [], mastery: {}, reviews: [], mistakes: [], games: [], personalPuzzles: [], solvedPuzzles: [],
   };
@@ -81,7 +95,12 @@ function defaults(): Profile {
 function load(): Profile {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { ...defaults(), ...(JSON.parse(raw) as Partial<Profile>) } as Profile;
+    if (raw) {
+      const stored = JSON.parse(raw) as Partial<Profile>;
+      const base = defaults();
+      // Fusión profunda de ajustes: los perfiles antiguos reciben los ajustes nuevos por defecto.
+      return { ...base, ...stored, settings: { ...base.settings, ...(stored.settings ?? {}) } } as Profile;
+    }
   } catch {
     /* almacenamiento no disponible: se usa el estado en memoria */
   }

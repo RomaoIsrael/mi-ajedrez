@@ -153,3 +153,39 @@ test('localización de SAN al español', () => {
   assert.equal(localizeSan('exd8=Q#', 'es'), 'exd8=D#');
   assert.equal(localizeSan('O-O', 'es'), 'O-O');
 });
+
+test('parseUserMove: notación española, inglesa, UCI, enroques y palabras', async () => {
+  const { parseUserMove, moveToSan } = await import('../dist/index.js');
+  const start = Position.start();
+  const san = (pos, text, locale) => { const m = parseUserMove(pos, text, locale); return m && moveToSan(pos, m); };
+  assert.equal(san(start, 'Cf3'), 'Nf3');
+  assert.equal(san(start, 'cf3'), 'Nf3');
+  assert.equal(san(start, 'Nf3'), 'Nf3');
+  assert.equal(san(start, 'e4'), 'e4');
+  assert.equal(san(start, 'e2-e4'), 'e4');
+  assert.equal(san(start, 'g1 f3'), 'Nf3');
+  assert.equal(san(start, 'caballo f3'), 'Nf3');
+  assert.equal(san(start, 'Caballo a f3'), 'Nf3');
+  assert.equal(san(start, 'Knight f3', 'en'), 'Nf3');
+  assert.equal(san(start, 'Cf6'), null);
+  assert.equal(san(start, 'hola'), null);
+  const castle = Position.fromFen('r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1');
+  assert.equal(san(castle, '0-0'), 'O-O');
+  assert.equal(san(castle, 'O-O-O'), 'O-O-O');
+  // En español "R" es el rey; en inglés, la torre.
+  const rk = Position.fromFen('4k3/8/8/8/8/8/8/R3K3 w - - 0 1');
+  assert.equal(san(rk, 'Rd2', 'es'), 'Kd2');
+  assert.equal(san(rk, 'Ta2', 'es'), 'Ra2');
+  assert.equal(san(rk, 'Ra2', 'en'), 'Ra2');
+  const promo = Position.fromFen('8/4P3/8/8/8/8/k7/4K3 w - - 0 1');
+  assert.equal(san(promo, 'e8=D'), 'e8=Q');
+  assert.equal(san(promo, 'e8=C'), 'e8=N');
+  assert.equal(san(promo, 'e7e8q'), 'e8=Q');
+  const cap = Position.fromFen('4k3/8/8/4p3/8/5N2/8/4K3 w - - 0 1');
+  assert.equal(san(cap, 'Cxe5'), 'Nxe5');
+  assert.equal(san(cap, 'caballo por e5'), 'Nxe5');
+  // "cxd4" es el peón c aunque un caballo también pueda capturar en d4.
+  const amb = Position.fromFen('4k3/8/8/8/3p4/1NP5/8/4K3 w - - 0 1');
+  assert.equal(san(amb, 'cxd4'), 'cxd4');
+  assert.equal(san(amb, 'Cxd4'), 'Nxd4');
+});
