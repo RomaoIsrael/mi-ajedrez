@@ -10,7 +10,7 @@ import { moveNavigator } from '../components/board-tools.js';
 import { coachBubble } from '../components/coach.js';
 import { button, h, navigate, primaryButton, screen } from '../dom.js';
 import { evaluate } from '../engine.js';
-import { addEvidence, explanationLevel, logActivity, profile, recordLearning, save } from '../state/store.js';
+import { addEvidence, explanationLevel, logActivity, profile, recordLearning, save, updateSkillRating } from '../state/store.js';
 
 const LEVEL = { beginner: 'Principiante', intermediate: 'Intermedio', advanced: 'Avanzado' } as const;
 
@@ -69,6 +69,7 @@ function renderGameStudy(root: HTMLElement, hg: HistoricalGame): () => void {
     done.add(m.ply);
     if (ok) found++;
     addEvidence(m.concept, ok, 'puzzle');
+    updateSkillRating(m.concept, { beginner: 600, intermediate: 1100, advanced: 1600 }[hg.minLevel], ok ? 1 : 0);
     const played = history[m.ply]!;
     board.setInteraction({});
     board.setArrows([{ from: played.move.from, to: played.move.to, color: 'good' }]);

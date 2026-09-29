@@ -11,6 +11,7 @@ import { dailyMissions, dayKey, lessonCardId, newAchievements, type ActivityEven
 import { LESSONS } from '@kavalo/content';
 import type { PositionEval } from '@kavalo/tactics';
 import type { DnaValue, GameFeatures } from '@kavalo/dna';
+import { detectLocale, type Locale } from '../i18n.js';
 
 export type Experience = 'never' | 'rules' | 'occasional' | 'frequent' | 'club' | 'competitive';
 export type CoachStyle = 'mentor' | 'master' | 'friend' | 'tactician' | 'motivator';
@@ -81,6 +82,12 @@ export interface Profile {
     colorblind: 'none' | 'deutan' | 'tritan';
     textScale: number;
     evalBar: boolean;
+    /** Idioma de la interfaz (brief §71). */
+    locale: Locale;
+    /** Experiencia adulto o niños (brief §46–47). */
+    mode: 'adult' | 'kids';
+    /** Set de piezas (brief §34). */
+    pieceSet: string;
   };
   xp: number;
   streak: { current: number; best: number; lastDay: string | null };
@@ -104,6 +111,29 @@ export interface Profile {
   dnaSnapshots: { at: number; games: number; dims: DnaValue[] }[];
   /** Resultados de los entrenamientos de coordenadas, visión y cálculo (brief §51–53). */
   training: TrainingStats;
+  /** Test inicial (brief §81). */
+  assessment: { at: number; score: number; total: number; byArea: Record<string, { correct: number; total: number }>; rating: number } | null;
+  /** Ratings internos por área (brief §50), además de partidas y puzzles. */
+  skillRatings: Record<SkillArea, number>;
+  /** Última modificación (la usa la fusión al sincronizar). */
+  updatedAt: number;
+  /** Sincronización opcional: desactivada hasta que el usuario da su consentimiento. */
+  sync: { enabled: boolean; server: string; token: string | null; version: number; lastSync: number | null; consentAt: number | null };
+}
+
+export type SkillArea = 'tactics' | 'strategy' | 'endgame' | 'openings' | 'calculation';
+export const SKILL_LABEL: Record<SkillArea, string> = {
+  tactics: 'Táctica', strategy: 'Estrategia', endgame: 'Finales', openings: 'Conocimiento de aperturas', calculation: 'Cálculo',
+};
+
+/** Área de rating de un concepto del mapa de aprendizaje. */
+export function skillOf(concept: string): SkillArea | null {
+  if (concept.startsWith('tactics.') || concept.startsWith('vision.')) return 'tactics';
+  if (concept.startsWith('strategy.') || concept.startsWith('planning.')) return 'strategy';
+  if (concept.startsWith('endgame.')) return 'endgame';
+  if (concept.startsWith('openings.')) return 'openings';
+  if (concept.startsWith('calculation.')) return 'calculation';
+  return null;
 }
 
 export interface TrainingStats {
@@ -130,10 +160,14 @@ function defaults(): Profile {
     settings: {
       theme: 'system', coordinates: true, reduceMotion: false, helpLevel: 'auto', sound: false, vibration: false,
       boardTheme: 'slate', colorblind: 'none', textScale: 100, evalBar: false,
+      locale: detectLocale(), mode: 'adult', pieceSet: 'royal-modern',
     },
     xp: 0, streak: { current: 0, best: 0, lastDay: null }, gameRating: 400, puzzleRating: 400,
     completedLessons: [], mastery: {}, reviews: [], mistakes: [], games: [], personalPuzzles: [], solvedPuzzles: [],
-    activity: [], ratingHistory: [], achievements: {}, missionsClaimed: {}, dnaSnapshots: [], training: emptyTraining(),
+    activity: [], ratingHistory: [], achievements: {}, missionsClaimed: {}, dnaSnapshots: [], training: emptyTraining(), assessment: null,
+    skillRatings: { tactics: 400, strategy: 400, endgame: 400, openings: 400, calculation: 400 },
+    updatedAt: 0,
+    sync: { enabled: false, server: '', token: null, version: 0, lastSync: null, consentAt: null },
   };
 }
 
@@ -144,7 +178,8 @@ function load(): Profile {
       const stored = JSON.parse(raw) as Partial<Profile>;
       const base = defaults();
       // Fusión profunda de ajustes: los perfiles antiguos reciben los ajustes nuevos por defecto.
-      return { ...base, ...stored, settings: { ...base.settings, ...(stored.settings ?? {}) }, training: { ...base.training, ...(stored.training ?? {}) } } as Profile;
+      // Los perfiles creados antes del multiidioma se usaban en español: lo conservan.
+      return { ...base, ...stored, settings: { ...base.settings, locale: 'es', ...(stored.settings ?? {}) }, training: { ...base.training, ...(stored.training ?? {}) }, skillRatings: { ...base.skillRatings, ...(stored.skillRatings ?? {}) } } as Profile;
     }
   } catch {
     /* almacenamiento no disponible: se usa el estado en memoria */
@@ -164,6 +199,7 @@ for (const id of profile.completedLessons) {
 const listeners = new Set<() => void>();
 
 export function save(): void {
+  profile.updatedAt = Date.now();
   try {
     localStorage.setItem(KEY, JSON.stringify(profile));
   } catch {
@@ -281,6 +317,26 @@ export function updateRating(kind: 'gameRating' | 'puzzleRating', opponent: numb
   return delta;
 }
 
+/** Rating por área: misma fórmula tipo Elo, frente a la dificultad del ejercicio. */
+export function updateSkillRating(concept: string, difficulty: number, score: number): void {
+  const area = skillOf(concept);
+  if (!area) return;
+  const cur = profile.skillRatings[area];
+  const expected = 1 / (1 + 10 ** ((difficulty - cur) / 400));
+  profile.skillRatings[area] = Math.max(100, Math.round(cur + (cur < 800 ? 40 : 24) * (score - expected)));
+  save();
+}
+
+/** Ratings iniciales por área a partir del test inicial. */
+export function seedSkillRatings(byArea: Record<string, { correct: number; total: number }>, rating: number): void {
+  const at = (a: string) => (byArea[a]?.total ? byArea[a]!.correct / byArea[a]!.total : 0.5);
+  const v = (acc: number) => Math.max(150, Math.round(rating + (acc - 0.5) * 300));
+  profile.skillRatings = {
+    tactics: v((at('tactics') + at('vision')) / 2), strategy: v(at('strategy')), endgame: v(at('endgame')),
+    openings: v(at('strategy')), calculation: v(at('calculation')),
+  };
+}
+
 export const LEVELS = [
   { name: 'Novato', min: 0 }, { name: 'Aprendiz', min: 400 }, { name: 'Principiante', min: 700 },
   { name: 'Jugador', min: 1000 }, { name: 'Club', min: 1250 }, { name: 'Intermedio', min: 1500 },
@@ -295,6 +351,7 @@ export function levelName(rating = profile.gameRating): string {
 export function explanationLevel(): 'beginner' | 'intermediate' | 'advanced' {
   const h = profile.settings.helpLevel;
   if (h !== 'auto') return h === 'beginner' ? 'beginner' : h;
+  if (profile.settings.mode === 'kids') return 'beginner';
   return profile.gameRating < 1000 ? 'beginner' : profile.gameRating < 1750 ? 'intermediate' : 'advanced';
 }
 

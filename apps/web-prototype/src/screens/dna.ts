@@ -20,7 +20,10 @@ const EXAMPLE: DnaValue[] = [
 const SHORT: Record<string, string> = { strategy: 'Posicional', technique: 'Técnica' };
 
 /** Radar de una o dos series («ahora» y «antes»). Los valores sin datos van al centro. */
-function radar(now: DnaValue[], before?: DnaValue[]): SVGSVGElement {
+/** Serie del radar: clave, etiqueta y valor 0–100 (null = sin datos). */
+export type RadarValue = { key: string; label: string; value: number | null };
+
+export function radar(now: RadarValue[], before?: RadarValue[]): SVGSVGElement {
   const n = now.length;
   const R = 78;
   const pt = (i: number, r: number) => {
@@ -28,7 +31,7 @@ function radar(now: DnaValue[], before?: DnaValue[]): SVGSVGElement {
     return [+(100 + Math.cos(a) * r).toFixed(1), +(100 + Math.sin(a) * r).toFixed(1)] as const;
   };
   const ring = (f: number) => now.map((_, i) => pt(i, R * f).join(',')).join(' ');
-  const shape = (dims: DnaValue[]) => now.map((d, i) => pt(i, (R * (dims.find((x) => x.key === d.key)?.value ?? 0)) / 100).join(',')).join(' ');
+  const shape = (dims: RadarValue[]) => now.map((d, i) => pt(i, (R * (dims.find((x) => x.key === d.key)?.value ?? 0)) / 100).join(',')).join(' ');
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '-20 -6 240 212');
   svg.setAttribute('class', 'radar');
@@ -43,7 +46,7 @@ function radar(now: DnaValue[], before?: DnaValue[]): SVGSVGElement {
     ${before ? `<polygon points="${shape(before)}" class="radar-before"/>` : ''}
     <polygon points="${shape(now)}" class="radar-shape"/>
     ${now.map((d, i) => `<circle r="3" cx="${pt(i, (R * (d.value ?? 0)) / 100)[0]}" cy="${pt(i, (R * (d.value ?? 0)) / 100)[1]}" class="radar-dot"><title>${d.label}: ${d.value ?? 'sin datos'}</title></circle>`).join('')}
-    ${now.map((d, i) => { const [x, y] = pt(i, R + 13); return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" class="radar-label">${SHORT[d.key] ?? d.label}</text>`; }).join('')}`;
+    ${now.map((d, i) => { const [x, y] = pt(i, R + 13); return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" class="radar-label">${d.label.length > 12 ? SHORT[d.key] ?? d.label : d.label}</text>`; }).join('')}`;
   return svg;
 }
 

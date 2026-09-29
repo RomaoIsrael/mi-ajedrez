@@ -1,0 +1,50 @@
+[
+  {
+    "id": "royal-modern",
+    "name": "Royal Modern"
+  },
+  {
+    "id": "classic-elite",
+    "name": "Classic Elite"
+  },
+  {
+    "id": "natural-wood",
+    "name": "Natural Wood"
+  },
+  {
+    "id": "crystal",
+    "name": "Crystal"
+  },
+  {
+    "id": "cyber",
+    "name": "Cyber"
+  },
+  {
+    "id": "medieval",
+    "name": "Medieval"
+  },
+  {
+    "id": "fantasy",
+    "name": "Fantasy"
+  },
+  {
+    "id": "kids",
+    "name": "Kids"
+  },
+  {
+    "id": "minimal",
+    "name": "Minimal"
+  },
+  {
+    "id": "dark",
+    "name": "Dark"
+  },
+  {
+    "id": "neon",
+    "name": "Neon"
+  },
+  {
+    "id": "tournament",
+    "name": "Tournament"
+  }
+]

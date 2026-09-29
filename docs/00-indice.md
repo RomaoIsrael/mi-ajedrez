@@ -15,6 +15,7 @@
 13. [Coach](13-coach.md) — recomendador, repaso espaciado, misiones, logros, reporte semanal y retirada de ayudas.
 14. [Stockfish](14-stockfish.md) — motor, robots, análisis con motor, libro de aperturas y verificación de contenido.
 15. [ADN](15-adn.md) — rasgos medidos, dimensiones con intervalo, evolución, consejos y aperturas.
+16. [Personalización y módulos](16-personalizacion.md) — modos y relojes, entrenamientos, aperturas, biblioteca, importar/exportar, piezas, modo niños, idiomas, test inicial y dashboard.
 
 ## Convenciones
 

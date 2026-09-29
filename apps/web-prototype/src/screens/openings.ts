@@ -10,7 +10,7 @@ import { Board } from '../components/board.js';
 import { moveNavigator } from '../components/board-tools.js';
 import { coachBubble } from '../components/coach.js';
 import { button, h, navigate, primaryButton, screen } from '../dom.js';
-import { addEvidence, logActivity, profile, recordLearning, save } from '../state/store.js';
+import { addEvidence, logActivity, profile, recordLearning, save, updateSkillRating } from '../state/store.js';
 import { presetGame } from './play.js';
 
 const LEVEL = { beginner: 'Principiante', intermediate: 'Intermedio', advanced: 'Avanzado' } as const;
@@ -140,6 +140,7 @@ function renderPractice(root: HTMLElement, o: Opening): () => void {
     st.at = Date.now();
     profile.training.openings[o.id] = st;
     addEvidence('openings.development', errors === 0, 'guided');
+    updateSkillRating('openings.development', { beginner: 500, intermediate: 1000, advanced: 1500 }[o.minLevel], errors === 0 ? 1 : errors === 1 ? 0.5 : 0);
     logActivity({ kind: 'training', ms: Date.now() - started, ok: errors === 0, ref: `opening:${o.id}`, concept: 'openings.development' });
     recordLearning(errors ? 8 : 15, 'opening');
     save();

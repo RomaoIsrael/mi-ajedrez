@@ -48,7 +48,8 @@ function check(cond, msg) {
       }
       await p.click('button:text("Comprobar")');
     } else throw new Error(`enunciado desconocido: ${prompt}`);
-    await p.waitForFunction((prev) => document.querySelector('.train-prompt').textContent !== prev, prompt, { timeout: 5000 });
+    // Espera a la siguiente pregunta (el enunciado puede repetirse; el contador no).
+    await p.waitForFunction((n) => !document.querySelector('main .muted.small')?.textContent?.startsWith(`${n} de 20`), i + 1, { timeout: 5000 });
   }
   const result = await p.locator('.train-prompt').innerText();
   check(/^20\/20/.test(result), `coordenadas: 20/20 con récord (${result})`);

@@ -12,7 +12,7 @@ import { Board } from '../components/board.js';
 import { coachBubble } from '../components/coach.js';
 import { button, h, navigate, primaryButton, screen } from '../dom.js';
 import { getEngine } from '../engine.js';
-import { addEvidence, logActivity, profile, recordLearning, save } from '../state/store.js';
+import { addEvidence, logActivity, profile, recordLearning, save, updateSkillRating } from '../state/store.js';
 
 const EMPTY = '8/8/8/8/8/8/8/8 w - - 0 1';
 
@@ -279,6 +279,7 @@ function renderCalc(root: HTMLElement): () => void {
         if (r.depth === ex.line.length) t.perfect++;
         if (r.bestAmongCandidates) t.bestInCandidates++;
         addEvidence('calculation.candidates', r.depth >= 1, 'puzzle');
+        updateSkillRating('calculation.candidates', ex.rating, r.accuracy);
         logActivity({ kind: 'training', ms: 0, ok: r.depth === ex.line.length, ref: 'train:calc', concept: 'calculation.candidates' });
         save();
         const g = new Game(ex.fen);

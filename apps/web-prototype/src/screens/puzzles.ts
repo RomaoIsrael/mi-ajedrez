@@ -12,7 +12,7 @@ import { cue } from '../feedback.js';
 import { coachBubble } from '../components/coach.js';
 import { append, button, h, navigate, primaryButton, screen } from '../dom.js';
 import { mistakeStats } from '../state/insights.js';
-import { addEvidence, addReview, gradeReview, logActivity, profile, recordLearning, save, updateRating } from '../state/store.js';
+import { addEvidence, addReview, gradeReview, logActivity, profile, recordLearning, save, updateRating, updateSkillRating } from '../state/store.js';
 
 interface Item { id: string; fen: string; accept: string[]; line?: string[]; goal?: 'mate' | 'material'; concept: string; rating: number; prompt: string; explanation?: string; personal?: { days: number } }
 
@@ -149,6 +149,7 @@ export function renderPuzzles(root: HTMLElement, [conceptFilter]: string[]): voi
       const firstTry = correct && wrong === 0 && !sawSolution;
       const grade = gradeAttempt({ correct: firstTry, hints, sawSolution, ms, medianMs: 25_000 });
       const delta = updateRating('puzzleRating', item.rating, firstTry && hints === 0 ? 1 : 0);
+      updateSkillRating(item.concept, item.rating, firstTry && hints === 0 ? 1 : 0);
       addEvidence(item.concept, firstTry, item.personal ? 'personal_puzzle' : 'puzzle', hints);
       if (profile.reviews.some((r) => r.itemId === item.id)) gradeReview(item.id, grade);
       else if (!firstTry) addReview(item.concept, item.id); // repetición espaciada si falla

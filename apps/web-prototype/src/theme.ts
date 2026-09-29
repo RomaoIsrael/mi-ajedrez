@@ -1,6 +1,8 @@
+import { setPieceSet } from './components/pieces.js';
+import { setLocale } from './i18n.js';
 import { profile } from './state/store.js';
 
-/** Aplica tema, tema de tablero, modo para daltonismo, tamaño de texto y reducción de movimiento. */
+/** Aplica idioma, modo adulto/niños, set de piezas, tema, tema de tablero, modo para daltonismo, tamaño de texto y reducción de movimiento. */
 export function applyTheme(): void {
   const root = document.documentElement;
   const s = profile.settings;
@@ -11,4 +13,7 @@ export function applyTheme(): void {
   else root.setAttribute('data-cb', s.colorblind);
   root.style.setProperty('--text-scale', `${s.textScale}%`);
   root.classList.toggle('reduce-motion', s.reduceMotion);
+  root.setAttribute('data-mode', s.mode);
+  setPieceSet(s.pieceSet);
+  setLocale(s.locale);
 }

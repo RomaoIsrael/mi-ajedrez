@@ -24,6 +24,8 @@ function check(cond, msg) {
   await p.evaluate(() => localStorage.clear());
   await p.reload();
   await p.click('.splash');
+  await p.click('button.choice:text("Español")');
+  await p.click('text=Un adulto');
   await p.click('text=Nunca');
   await p.fill('input.input', 'Lucía');
   await p.click('text=Continuar');

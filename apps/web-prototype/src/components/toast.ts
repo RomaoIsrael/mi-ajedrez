@@ -13,8 +13,19 @@ export function toast(icon: string, title: string, text: string): void {
   setTimeout(() => el.remove(), 4700);
 }
 
+/** Modo niños: una pequeña lluvia de estrellas (se omite con «reducir animaciones»). */
+function celebrate(): void {
+  if (document.documentElement.classList.contains('reduce-motion')) return;
+  const box = document.body.appendChild(h('div', { class: 'confetti', 'aria-hidden': 'true' }));
+  for (let i = 0; i < 18; i++) {
+    box.append(h('span', { style: `left:${(i * 53) % 100}%;animation-delay:${(i % 6) * 60}ms` }, ['⭐', '✨', '🎉'][i % 3]!));
+  }
+  setTimeout(() => box.remove(), 1600);
+}
+
 export function showReward(r: Reward): void {
   cue('success');
+  if (document.documentElement.getAttribute('data-mode') === 'kids') celebrate();
   if (r.type === 'achievement') toast(r.achievement.icon, `Logro: ${r.achievement.title}`, r.achievement.description);
   else toast('✅', `Misión cumplida (+${r.mission.xp} XP)`, r.mission.title);
 }

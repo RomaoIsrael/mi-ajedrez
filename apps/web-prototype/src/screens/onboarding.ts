@@ -1,10 +1,12 @@
 /** Onboarding: una pregunta por pantalla y una evaluación rápida opcional con posiciones reales. */
 import { Game } from '@kavalo/chess-core';
-import { PUZZLES } from '@kavalo/content';
+import { AREA_LABEL, ASSESSMENT, scoreAssessment } from '@kavalo/content';
 import { Board } from '../components/board.js';
 import { COACHES } from '../components/coach.js';
 import { button, clear, h, navigate, primaryButton, screen } from '../dom.js';
-import { profile, save, type CoachStyle, type Experience } from '../state/store.js';
+import { addEvidence, profile, save, seedSkillRatings, type CoachStyle, type Experience } from '../state/store.js';
+import { t } from '../i18n.js';
+import { applyTheme } from '../theme.js';
 
 const LOGO = new URL('../../../../assets/brand/logo.svg', import.meta.url).href;
 
@@ -18,12 +20,12 @@ const EXPERIENCE: { id: Experience; label: string; rating: number }[] = [
 ];
 
 const GOALS = [
-  ['learn', 'Aprender desde cero'], ['friends', 'Jugar con amigos'], ['rating', 'Mejorar mi rating'],
-  ['tactics', 'Mejorar táctica'], ['endgames', 'Dominar finales'], ['tournaments', 'Prepararme para torneos'],
+  ['learn', 'Aprender desde cero'], ['friends', 'Jugar con amigos'], ['rating', 'Mejorar mi rating'], ['compete', 'Competir'],
+  ['tactics', 'Mejorar táctica'], ['endgames', 'Dominar finales'], ['openings', 'Aprender aperturas'], ['tournaments', 'Prepararme para torneos'],
 ] as const;
 
 export function renderOnboarding(root: HTMLElement): void {
-  const steps: (() => HTMLElement)[] = [splash, experience, name, goal, minutes, coach];
+  const steps: (() => HTMLElement)[] = [splash, language, audience, experience, name, goal, minutes, coach];
   let i = 0;
   const show = () => {
     clear(root);
@@ -48,6 +50,18 @@ export function renderOnboarding(root: HTMLElement): void {
       subtitle ? h('p', { class: 'muted' }, subtitle) : null,
       h('div', { class: 'choices' }, ...options.map(([v, label]) =>
         h('button', { class: 'choice', onclick: (() => { onPick(v); next(); }) as EventListener }, label))));
+  }
+
+  function language() {
+    return choice(t('onb.language'), [['es', 'Español'], ['en', 'English']] as const, (v) => { profile.settings.locale = v; applyTheme(); });
+  }
+
+  function audience() {
+    return choice(t('onb.audience'), [['adult', t('onb.audience.adult')], ['kids', t('onb.audience.kids')]] as const, (v) => {
+      profile.settings.mode = v;
+      if (v === 'kids') profile.settings.pieceSet = 'kids';
+      applyTheme();
+    }, t('onb.audienceHelp'));
   }
 
   function experience() {
@@ -82,47 +96,71 @@ export function renderOnboarding(root: HTMLElement): void {
       (v) => { profile.coachStyle = v; }, 'La información técnica es la misma; cambia la forma de decirla.');
   }
 
+  /** Test inicial (brief §81): 13 ejercicios progresivos; se puede terminar antes. */
   function assessment(): HTMLElement {
-    const items = ['p-free-bishop', 'p-back-rank', 'p-knight-fork', 'p-skewer'].map((id) => PUZZLES.find((p) => p.id === id)!);
+    const items = ASSESSMENT;
     let idx = 0;
-    let score = 0;
-    const container = screen('Evaluación rápida');
-    const info = h('p', { class: 'muted' });
+    const answers: Record<string, boolean> = {};
+    const container = screen('Evaluación inicial');
+    const info = h('p', { class: 'muted small' });
+    const prompt = h('p', { class: 'train-prompt' });
     const progress = h('div', { class: 'progress' }, h('div', { class: 'progress-bar' }));
-    const board = new Board({
-      coordinates: profile.settings.coordinates, reduceMotion: profile.settings.reduceMotion,
-      movable: () => 'w',
-      onMove: (from, to, promotion) => {
-        const item = items[idx]!;
-        const game = new Game(item.fen);
-        const played = game.move({ from, to, promotion });
-        if (!played) return false;
-        const ok = item.accept.includes(played.uci);
-        if (ok) score++;
-        board.setPosition(game.position, { from, to });
-        board.setHighlights([to], ok ? 'good' : 'bad');
-        setTimeout(nextItem, 700);
-        return true;
-      },
-    });
-    const skip = button('No lo sé', () => nextItem());
+    const options = h('div', { class: 'choices' });
+    const board = new Board({ coordinates: profile.settings.coordinates, reduceMotion: profile.settings.reduceMotion });
+    const answer = (ok: boolean, sq?: number) => {
+      answers[items[idx]!.id] = ok;
+      if (sq !== undefined) board.setHighlights([sq], ok ? 'good' : 'bad');
+      setTimeout(nextItem, 650);
+    };
     const load = () => {
       const item = items[idx]!;
-      info.textContent = `${idx + 1} de ${items.length} · ${item.prompt}`;
+      const pos = new Game(item.fen).position;
+      info.textContent = `${idx + 1} de ${items.length} · ${AREA_LABEL[item.area]}`;
+      prompt.textContent = item.prompt;
       (progress.firstChild as HTMLElement).style.width = `${(idx / items.length) * 100}%`;
-      board.setPosition(new Game(item.fen).position, null, false);
+      board.setPosition(pos, null, false);
       board.clearMarks();
+      options.replaceChildren();
+      if (item.type === 'move') {
+        board.setInteraction({
+          movable: () => pos.turn,
+          onMove: (from, to, promotion) => {
+            const game = new Game(item.fen);
+            const played = game.move({ from, to, promotion });
+            if (!played) return false;
+            board.setPosition(game.position, { from, to });
+            board.setInteraction({});
+            answer(item.accept.includes(played.uci), to);
+            return true;
+          },
+        });
+      } else {
+        board.setInteraction({});
+        options.append(...item.options.map((o, i) => h('button', { class: 'choice', onclick: (() => {
+          options.querySelectorAll('button').forEach((b) => { (b as HTMLButtonElement).disabled = true; });
+          (options.children[item.answer] as HTMLElement).classList.add('choice-good');
+          if (i !== item.answer) (options.children[i] as HTMLElement).classList.add('choice-bad');
+          answer(i === item.answer);
+        }) as EventListener }, o)));
+      }
     };
     const nextItem = () => {
       idx++;
       if (idx < items.length) return load();
-      // Estimación inicial prudente (alta incertidumbre): se ajusta con las primeras partidas.
-      const r = profile.puzzleRating;
-      profile.puzzleRating = Math.round(r + (score - 2) * 120);
-      profile.gameRating = Math.round(profile.gameRating + (score - 2) * 80);
+      done();
+    };
+    const done = () => {
+      // Estimación prudente (alta incertidumbre): se ajusta con las primeras partidas y puzzles.
+      const r = scoreAssessment(answers, profile.gameRating);
+      profile.assessment = { at: Date.now(), score: r.score, total: r.total, byArea: r.byArea, rating: r.rating };
+      profile.puzzleRating = r.rating;
+      profile.gameRating = Math.round((profile.gameRating + r.rating) / 2);
+      for (const item of items) if (item.id in answers) addEvidence(item.concept, answers[item.id]!, 'guided');
+      seedSkillRatings(r.byArea, r.rating);
       next();
     };
-    container.append(info, progress, h('div', { class: 'board-holder' }, board.el), h('div', { class: 'cta' }, skip));
+    container.append(info, progress, prompt, h('div', { class: 'board-holder' }, board.el), options,
+      h('div', { class: 'cta' }, button('No lo sé', () => answer(false)), button('Terminar la evaluación', () => done())));
     load();
     return container;
   }

@@ -8,6 +8,9 @@ import { renderTrain } from './screens/train.js';
 import { renderOpenings } from './screens/openings.js';
 import { renderLibrary } from './screens/library.js';
 import { renderImport } from './screens/import.js';
+import { t } from './i18n.js';
+import { syncNow } from './state/sync.js';
+import { renderPrivacy } from './screens/privacy.js';
 import { showReward } from './components/toast.js';
 import { renderDna } from './screens/dna.js';
 import { renderHome, renderPlan } from './screens/home.js';
@@ -42,20 +45,21 @@ const ROUTES: Record<string, { render: Render; tab?: string; title: string }> = 
   openings: { render: renderOpenings, tab: 'learn', title: 'Aperturas' },
   library: { render: renderLibrary, tab: 'learn', title: 'Biblioteca' },
   import: { render: renderImport, tab: 'progress', title: 'Importar' },
+  privacy: { render: renderPrivacy, title: 'Privacidad' },
 };
 
 const TABS = [
-  ['home', '#/', '🏠', 'Inicio'], ['learn', '#/learn', '📚', 'Aprender'], ['play', '#/play', '♟', 'Jugar'],
-  ['puzzles', '#/puzzles', '🧩', 'Puzzles'], ['progress', '#/progress', '📈', 'Progreso'],
+  ['home', '#/', '🏠', 'nav.home'], ['learn', '#/learn', '📚', 'nav.learn'], ['play', '#/play', '♟', 'nav.play'],
+  ['puzzles', '#/puzzles', '🧩', 'nav.puzzles'], ['progress', '#/progress', '📈', 'nav.progress'],
 ] as const;
 
 const LOGO = new URL('../../../assets/brand/favicon.svg', import.meta.url).href;
 const app = document.getElementById('app')!;
 const main = h('main', { id: 'main', tabindex: '-1' });
-const nav = h('nav', { class: 'tabbar', 'aria-label': 'Navegación principal' });
-const header = h('header', { class: 'topbar' },
-  h('a', { href: '#/', class: 'brand', 'aria-label': 'Kavalo, inicio' }, h('img', { src: LOGO, alt: '' }), h('span', {}, 'Kavalo')),
-  h('a', { href: '#/settings', class: 'avatar', 'aria-label': 'Perfil y ajustes' }, '⚙'));
+const nav = h('nav', { class: 'tabbar' });
+const brand = h('a', { href: '#/', class: 'brand' }, h('img', { src: LOGO, alt: '' }), h('span', {}, 'Kavalo'));
+const avatar = h('a', { href: '#/settings', class: 'avatar' }, '⚙');
+const header = h('header', { class: 'topbar' }, brand, avatar);
 app.append(header, main, nav);
 
 let cleanup: void | (() => void);
@@ -72,8 +76,11 @@ function route(): void {
   }
   const r = ROUTES[name] ?? ROUTES['']!;
   document.title = `${r.title} · Kavalo`;
+  nav.setAttribute('aria-label', t('nav.main'));
+  brand.setAttribute('aria-label', t('nav.brand'));
+  avatar.setAttribute('aria-label', t('nav.settings'));
   nav.replaceChildren(...TABS.map(([id, href, icon, label]) =>
-    h('a', { href, class: `tab ${r.tab === id ? 'on' : ''}`, 'aria-current': r.tab === id ? 'page' : undefined }, h('span', { class: 'tab-icon', 'aria-hidden': 'true' }, icon), h('span', {}, label))));
+    h('a', { href, class: `tab ${r.tab === id ? 'on' : ''}`, 'aria-current': r.tab === id ? 'page' : undefined }, h('span', { class: 'tab-icon', 'aria-hidden': 'true' }, icon), h('span', {}, t(label)))));
   cleanup = r.render(main, params.map(decodeURIComponent));
   main.focus({ preventScroll: true });
   window.scrollTo(0, 0);
@@ -91,3 +98,10 @@ setTimeout(() => void (async () => {
   if (!(await getEngine())) return;
   for (const g of profile.games.slice(-30).filter((x) => !x.features)) await reviewInBackground(g);
 })(), 1500);
+// Modo sin conexión (brief §72): el service worker guarda la app, Stockfish y el contenido.
+if ('serviceWorker' in navigator && !new URLSearchParams(location.search).has('nosw')) {
+  window.addEventListener('load', () => { void navigator.serviceWorker.register('sw.js').catch(() => undefined); });
+}
+// Sincronización opcional (solo si el usuario la activó en Ajustes).
+void syncNow().catch(() => undefined);
+window.addEventListener('online', () => void syncNow().catch(() => undefined));

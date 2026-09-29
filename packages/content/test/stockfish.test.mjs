@@ -47,3 +47,24 @@ for (const sp of START_POSITIONS) {
     if (sp.goal === 'play') assert.ok(Math.abs(userCp) <= 150, `debe ser equilibrada (${userCp})`);
   });
 }
+
+import { ASSESSMENT } from '../dist/index.js';
+
+for (const item of ASSESSMENT) {
+  test(`test inicial: ${item.id} es correcto`, async () => {
+    const pos = Position.fromFen(item.fen);
+    if (item.type === 'move') {
+      const legal = pos.legalMoves().map((m) => `${'abcdefgh'[m.from & 7]}${(m.from >> 3) + 1}${'abcdefgh'[m.to & 7]}${(m.to >> 3) + 1}${m.promotion ?? ''}`);
+      for (const a of item.accept) assert.ok(legal.includes(a), `${a} es legal`);
+      if (item.area === 'rules') return; // enroque y captura al paso: basta con que sean legales
+      const a = await engine.analyse(item.fen, { depth: 16 });
+      assert.ok(item.accept.includes(a.bestmove), `Stockfish prefiere ${a.bestmove}`);
+    } else {
+      assert.ok(item.answer >= 0 && item.answer < item.options.length);
+      if (item.id === 'a-mate-or-not') assert.ok(pos.isCheckmate());
+      if (item.id === 'a-square') { const a = await engine.analyse(item.fen, { depth: 20 }); assert.ok(Math.abs(scoreToCp(a.lines[0])) < 100, 'tablas: el rey alcanza el peón'); }
+      if (item.id === 'a-king-sixth') { const a = await engine.analyse(item.fen, { depth: 20 }); assert.ok(scoreToCp(a.lines[0]) > 300, 'ganan las blancas'); }
+      if (item.id === 'a-isolated') { const files = pos.board.map((p, i) => (p?.type === 'p' && p.color === 'w' ? i & 7 : -1)); assert.ok(!files.includes(2) && !files.includes(4)); }
+    }
+  });
+}
