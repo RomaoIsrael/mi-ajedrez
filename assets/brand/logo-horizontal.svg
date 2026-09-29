@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 140" width="520" height="140">
+  <title>Kavalo — logotipo horizontal (concepto)</title>
+  <rect width="520" height="140" rx="20" fill="#F7F3EA"/>
+  <g transform="translate(6 10) scale(2.6)">
+    <path d="M35 33V19h6" fill="none" stroke="#C9A227" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M15 34.5c.5-5.5 2.5-8.5 5-11-2.5 0-4.5 1-6.5.5-2.5-.5-3.2-2.5-2.3-4.5L17 11.5c1.5-2 3-3 4.5-3.5L23 4.5l2.5 3.3c5 1.2 6.5 6.7 6 12.2-.5 5-1.5 9-1 14.5z" fill="#0F1B2D"/>
+    <circle cx="19.6" cy="13.2" r="1.5" fill="#C9A227"/>
+    <circle cx="35" cy="33" r="1.5" fill="#C9A227"/>
+    <circle cx="35" cy="26" r="1.2" fill="#F7F3EA" stroke="#C9A227" stroke-width="1"/>
+    <circle cx="41" cy="19" r="1.9" fill="#C9A227"/>
+  </g>
+  <text x="140" y="88" font-family="Fraunces, Georgia, serif" font-size="64" font-weight="600" fill="#0F1B2D">Kavalo</text>
+  <text x="143" y="116" font-family="Inter, Arial, sans-serif" font-size="15" letter-spacing="2" fill="#5A6475">TU ENTRENADOR DE AJEDREZ</text>
+</svg>

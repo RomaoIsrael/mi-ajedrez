@@ -1,0 +1,17 @@
+# Índice de documentación
+
+1. [Producto](01-producto.md) — concepto, propuesta de valor, filosofía, 30 nombres, personas, métricas norte.
+2. [Identidad visual](02-identidad-visual.md) — universo de marca, logo, set Royal Modern, sets adicionales, design system, animaciones, accesibilidad.
+3. [Arquitectura](03-arquitectura.md) — funcional, técnica, Stockfish, ChessExplanationEngine, IA generativa, offline, seguridad y privacidad.
+4. [UX](04-ux.md) — flujos de usuario, mapa de pantallas, onboarding y test inicial, wireframes, modos niño/adulto.
+5. [Pedagogía](05-pedagogia.md) — método, mapa de aprendizaje, currículo por niveles, progresión, dominio, repetición espaciada, rutina mental, ayudas progresivas.
+6. [Inteligencia](06-inteligencia.md) — ADN Ajedrecístico, clasificador de jugadas, Coach AI, detector de errores, sistema de confianza, recomendación, planes diarios, robots con personalidad.
+7. [Datos](07-datos.md) — esquema PostgreSQL, `UserChessProfile`, eventos de aprendizaje, sincronización.
+8. [Gamificación](08-gamificacion.md) — XP ligada a aprendizaje real, logros, misiones, rachas sanas.
+9. [MVP, roadmap y pruebas](09-mvp-roadmap-pruebas.md).
+
+## Convenciones
+
+- Idioma de producto: español e inglés desde el MVP (i18n con claves, nunca texto en código).
+- Notación: SAN en español para UI (R, D, T, A, C) y SAN inglés internamente / PGN.
+- Todo contenido pedagógico (lecciones, puzzles, textos) es **original**. Los autores clásicos citados en el brief sirven de referencia de *métodos*, nunca se reproduce su texto, diagramas o ejercicios.
