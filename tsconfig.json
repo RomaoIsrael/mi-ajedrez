@@ -1,0 +1,11 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/chess-core" },
+    { "path": "packages/tactics" },
+    { "path": "packages/bots" },
+    { "path": "packages/pedagogy" },
+    { "path": "packages/content" },
+    { "path": "apps/web-prototype" }
+  ]
+}

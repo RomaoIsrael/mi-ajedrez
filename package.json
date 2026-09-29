@@ -1,0 +1,21 @@
+{
+  "name": "kavalo",
+  "private": true,
+  "type": "module",
+  "description": "Kavalo — entrenador digital personal de ajedrez (monorepo)",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean",
+    "test": "npm run build && node --test packages/*/test/*.test.mjs",
+    "dev": "tsc -b --watch",
+    "serve": "http-server . -p 5173 -c-1 -s",
+    "start": "npm run build && npm run serve"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
