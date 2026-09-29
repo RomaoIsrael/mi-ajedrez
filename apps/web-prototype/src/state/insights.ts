@@ -1,10 +1,11 @@
 /**
  * Puente entre la app y el coach (`@kavalo/coach`): aplica sus funciones puras al perfil local
- * y traduce sus acciones a rutas. Aquí queda también el ADN básico del prototipo.
+ * y traduce sus acciones a rutas. También expone el ADN medido (`@kavalo/dna`).
  */
 import * as coach from '@kavalo/coach';
 import { SECTIONS } from '@kavalo/content';
-import { profile, mastery, type MistakeRecord } from './store.js';
+import { computeDna, type Dna } from '@kavalo/dna';
+import { profile, mastery } from './store.js';
 
 export { KIND_LABEL, KIND_TOPIC } from '@kavalo/coach';
 
@@ -36,31 +37,9 @@ export interface PlanBlock { minutes: number; label: string; href: string; why: 
 export const dailyPlan = (): PlanBlock[] =>
   coach.dailyPlan(profile).map((b) => ({ minutes: b.minutes, label: b.label, why: b.why, href: actionHref(b.action) }));
 
-export interface DnaDimension { key: string; label: string; value: number | null; }
-
-/** ADN básico (prototipo): 5 dimensiones con datos mínimos exigidos. */
-export function chessDna(): { games: number; confidence: 'building' | 'low' | 'medium'; dims: DnaDimension[] } {
-  const games = recentGames(30);
-  const n = games.length;
-  const ids = new Set(games.map((g) => g.id));
-  const ms = profile.mistakes.filter((m) => ids.has(m.gameId));
-  const count = (k: string) => ms.filter((m) => m.kind === k).length;
-  const clamp = (v: number) => Math.round(Math.max(5, Math.min(95, v)));
-  const tacticsFound = profile.games.filter((g) => ids.has(g.id)).length ? tacticSuccess(ms, n) : null;
-  const wins = games.filter((g) => g.userResult === 'win').length;
-  const dims: DnaDimension[] = n === 0 ? [] : [
-    { key: 'tactics', label: 'Táctica', value: tacticsFound },
-    { key: 'defense', label: 'Defensa', value: clamp(90 - ((count('hanging-piece') + count('ignored-threat') + count('allows-mate') * 2) / n) * 25) },
-    { key: 'vision', label: 'Visión', value: clamp(85 - ((count('missed-capture') + count('ignored-threat')) / n) * 20) },
-    { key: 'attack', label: 'Ataque', value: clamp(40 + (wins / n) * 40 + (count('missed-mate') ? -10 : 5)) },
-    { key: 'calm', label: 'Paciencia', value: clamp(70 - (profile.games.filter((g) => ids.has(g.id)).reduce((a, g) => a + g.hintsUsed, 0) / n) * 5) },
-  ];
-  return { games: n, confidence: n < 5 ? 'building' : n < 15 ? 'low' : 'medium', dims };
-}
-
-function tacticSuccess(ms: MistakeRecord[], n: number): number {
-  const missed = ms.filter((m) => m.kind === 'missed-capture' || m.kind === 'missed-mate').length;
-  return Math.round(Math.max(5, Math.min(95, 80 - (missed / n) * 18)));
+/** ADN medido con Stockfish (`@kavalo/dna`) a partir de las partidas analizadas. */
+export function chessDna(): Dna {
+  return computeDna(profile.games.map((g) => g.features).filter((f): f is NonNullable<typeof f> => !!f));
 }
 
 export function conceptProgress() {

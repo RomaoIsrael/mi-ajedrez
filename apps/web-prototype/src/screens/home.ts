@@ -51,9 +51,9 @@ export function renderHome(root: HTMLElement): void {
 
     h('a', { class: 'card card-link', href: '#/dna' },
       h('p', { class: 'eyebrow' }, 'Tu ADN ajedrecístico'),
-      dna.confidence === 'building'
-        ? h('p', {}, `Perfil en construcción (${dna.games}/5 partidas). Juega para descubrir tu estilo.`)
-        : h('p', {}, `▲ ${top[0]!.label}  ·  ▼ ${top.at(-1)!.label}`, h('span', { class: 'muted small' }, ` — basado en tus últimas ${dna.games} partidas`))),
+      dna.confidence === 'building' || top.length < 2
+        ? h('p', {}, `Perfil en construcción (${dna.games}/5 partidas analizadas). Juega para descubrir tu estilo.`)
+        : h('p', {}, `▲ ${top[0]!.label}  ·  ▼ ${top.at(-1)!.label}`, h('span', { class: 'muted small' }, ` — basado en ${dna.games} partidas analizadas`))),
 
     h('div', { class: 'home-links' },
       h('a', { class: 'card card-link', href: '#/report' }, h('p', { class: 'eyebrow' }, 'Tu semana'), h('p', {}, 'Reporte de progreso')),

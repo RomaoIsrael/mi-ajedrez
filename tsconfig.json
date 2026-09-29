@@ -20,6 +20,9 @@
       "path": "packages/content"
     },
     {
+      "path": "packages/dna"
+    },
+    {
       "path": "packages/coach"
     },
     {

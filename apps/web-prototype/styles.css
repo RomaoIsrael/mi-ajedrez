@@ -199,6 +199,26 @@ path.arrow-danger { fill: var(--ember); } path.arrow-good { fill: var(--insight)
 .radar-shape { fill: color-mix(in srgb, var(--insight) 35%, transparent); stroke: var(--insight); stroke-width: 2; }
 .radar-label { font: 600 9px var(--font-ui); fill: var(--text); }
 .example { border-style: dashed; }
+.radar-before { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.radar-dot { fill: var(--insight); stroke: var(--surface); stroke-width: 2; }
+.legend { display: flex; justify-content: center; align-items: center; gap: 6px; font-size: .85rem; }
+.key { display: inline-block; width: 18px; height: 0; border-top: 3px solid var(--insight); }
+.key-before { border-top: 2px dashed var(--muted); margin-left: 10px; }
+.bars-ci li { grid-template-columns: 1fr 1.2fr 108px; }
+.bar.ci { position: relative; overflow: visible; }
+.bar.ci .bar-fill { position: absolute; inset: 3px auto 3px 0; height: auto; opacity: .9; }
+.ci-band { position: absolute; top: -3px; bottom: -3px; background: color-mix(in srgb, var(--insight) 22%, transparent); border-radius: 4px; }
+.ci-before { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--muted); }
+.style-scale { margin: 10px 0; }
+.scale { display: grid; grid-template-columns: 72px 1fr 72px; gap: 8px; align-items: center; font-size: .8rem; }
+.scale-end:last-child { text-align: right; }
+.scale-track { position: relative; height: 6px; border-radius: 3px; background: var(--surface-2); }
+.scale-dot { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--insight); border: 2px solid var(--surface); }
+.prefs { padding-left: 18px; }
+.advice + .advice { border-top: 1px solid var(--border); margin-top: 10px; padding-top: 6px; }
+.opening-group { margin-top: 10px; }
+.opening-sugg { display: block; padding: 6px 0; color: var(--text); text-decoration: none; }
+.opening-sugg:hover strong { text-decoration: underline; }
 .concepts, .games, .err { padding-left: 0; list-style: none; }
 .concepts li, .games li, .err li { padding: 6px 0; border-bottom: 1px solid var(--border); }
 .puzzle-prompt { font-weight: 600; }

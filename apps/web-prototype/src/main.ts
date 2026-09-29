@@ -3,6 +3,7 @@ import { h } from './dom.js';
 import { renderAchievements } from './screens/achievements.js';
 import { renderAnalysis } from './screens/analysis.js';
 import { renderReport } from './screens/report.js';
+import { reviewInBackground } from './state/review.js';
 import { showReward } from './components/toast.js';
 import { renderDna } from './screens/dna.js';
 import { renderHome, renderPlan } from './screens/home.js';
@@ -32,7 +33,7 @@ const ROUTES: Record<string, { render: Render; tab?: string; title: string }> = 
   dna: { render: renderDna, tab: 'progress', title: 'ADN ajedrecístico' },
   settings: { render: renderSettings, title: 'Ajustes' },
   achievements: { render: renderAchievements, tab: 'progress', title: 'Logros' },
-  report: { render: renderReport, tab: 'progress', title: 'Tu semana' },
+  report: { render: renderReport, tab: 'progress', title: 'Tu reporte' },
 };
 
 const TABS = [
@@ -77,4 +78,8 @@ route();
 // Logros ya merecidos por perfiles anteriores a esta versión.
 if (profile.onboarded) checkRewards();
 // Stockfish se carga en segundo plano, sin retrasar la primera pantalla.
-setTimeout(() => void getEngine(), 1500);
+// Después, las partidas recientes sin analizar se revisan en serie para alimentar el ADN.
+setTimeout(() => void (async () => {
+  if (!(await getEngine())) return;
+  for (const g of profile.games.slice(-30).filter((x) => !x.features)) await reviewInBackground(g);
+})(), 1500);

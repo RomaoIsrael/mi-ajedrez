@@ -176,3 +176,37 @@ test('racha: días seguidos con aprendizaje, viva si ayer se entrenó', () => {
   assert.equal(learningStreak(state({ activity: [ev(2), ev(3)] }), NOW), 0, 'se rompió ayer');
   assert.equal(learningStreak(state({ activity: [{ at: NOW, kind: 'mastery', ms: 0 }] }), NOW), 0, 'los cambios de dominio no cuentan');
 });
+
+const S2 = (mean, n) => ({ sum: mean * n, n });
+const attackerFeatures = (i) => ({
+  moves: 30, accuracy: S2(72, 30), quiet: S2(70, 15), forced: S2(78, 10), chances: 3, chancesTaken: 3,
+  defense: S2(60, 5), advantage: S2(50, 6), endgame: S2(38 + (i % 5), 6), attackMoves: 14, sacrifices: 1, soundSacrifices: 1,
+  trades: 2, openMoves: 22, fast: S2(74, 15), slow: S2(72, 15), pressure: S2(60, 5), avgMoveMs: 7000, timeTroubleMoves: 0,
+  maxAdvantage: 450, result: i % 2 ? 'draw' : 'loss', castledByMove: 9,
+});
+
+test('ADN: la tendencia medida entra en el recomendador con su motivo', async () => {
+  const { monthlyReport } = await import('../dist/index.js');
+  const g = Array.from({ length: 12 }, (_, i) => ({ id: `g${i}`, at: NOW - (12 - i) * DAY, userResult: 'loss', hintsUsed: 0, features: attackerFeatures(i) }));
+  const recs = recommendations(state({ completedLessons: FUNDAMENTALS, games: g }), NOW);
+  const dna = recs.find((r) => r.id === 'dna:endgames');
+  assert.ok(dna, 'hay recomendación del ADN');
+  assert.match(dna.reason, /pierdes parte de tus ventajas al llegar al final/);
+  assert.deepEqual(dna.action, { type: 'lesson', lessonId: 'kq-vs-k' });
+  const report = monthlyReport(state({ games: g }), NOW);
+  assert.equal(report.days, 30);
+  assert.equal(report.games.played, 12);
+});
+
+test('reporte mensual: la evolución del ADN aparece si hay instantánea anterior', async () => {
+  const { monthlyReport, reportToMarkdown } = await import('../dist/index.js');
+  const { computeDna } = await import('@kavalo/dna');
+  const weak = Array.from({ length: 12 }, (_, i) => ({ ...attackerFeatures(i), defense: S2(35 + (i % 3), 8) }));
+  const strong = Array.from({ length: 12 }, (_, i) => ({ id: `n${i}`, at: NOW - (12 - i) * 3600_000, userResult: 'win', hintsUsed: 0, features: { ...attackerFeatures(i), defense: S2(75 + (i % 3), 8) } }));
+  const snapshot = { at: NOW - 40 * DAY, games: 12, dims: computeDna(weak).dims };
+  const r = monthlyReport(state({ games: strong, dnaSnapshots: [snapshot] }), NOW);
+  const defense = r.dnaChanges.find((c) => c.key === 'defense');
+  assert.ok(defense && defense.delta >= 30);
+  assert.match(reportToMarkdown(r), /^# Reporte mensual/);
+  assert.match(reportToMarkdown(r), /ADN · Defensa: \d+ → \d+/);
+});

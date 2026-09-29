@@ -16,6 +16,7 @@ import { cue, moveCue } from '../feedback.js';
 import { coachBubble, explanationCard } from '../components/coach.js';
 import { button, h, navigate, primaryButton, screen } from '../dom.js';
 import { KIND_LABEL } from '../state/insights.js';
+import { reviewInBackground } from '../state/review.js';
 import { checklistStatus, FADE_AFTER_GAMES, threatWarningsNeeded } from '@kavalo/coach';
 import {
   addEvidence, addReview, explanationLevel, logActivity, mastery, profile, recordLearning, save, uid, updateRating,
@@ -75,10 +76,15 @@ interface Session {
   game: Game;
   user: Color;
   setup: Setup;
-  clock: { w: number; b: number; inc: number } | null;
+  clock: { w: number; b: number; inc: number; base: number } | null;
   analyses: Map<number, MoveAnalysis>;
   hintsUsed: number;
   startedAt: number;
+  /** Por jugada del usuario (índice de ply): ms empleados y fracción de reloj restante. */
+  moveMs: Map<number, number>;
+  clockLeft: Map<number, number>;
+  /** Momento en que empezó el turno actual del usuario. */
+  turnStart: number;
 }
 
 let session: Session | null = null;
@@ -88,8 +94,8 @@ function startGame(): void {
   const c = CLOCKS[setup.clock];
   session = {
     id: uid(), game: new Game(), user, setup: { ...setup },
-    clock: c ? { w: c.base * 1000, b: c.base * 1000, inc: c.inc * 1000 } : null,
-    analyses: new Map(), hintsUsed: 0, startedAt: Date.now(),
+    clock: c ? { w: c.base * 1000, b: c.base * 1000, inc: c.inc * 1000, base: c.base * 1000 } : null,
+    analyses: new Map(), hintsUsed: 0, startedAt: Date.now(), moveMs: new Map(), clockLeft: new Map(), turnStart: performance.now(),
   };
 }
 
@@ -248,6 +254,9 @@ export function renderGame(root: HTMLElement): () => void {
     const before = s.game.position;
     const played = s.game.move({ from, to, promotion });
     if (!played) return false;
+    const ply = s.game.history.length - 1;
+    s.moveMs.set(ply, Math.round(performance.now() - s.turnStart));
+    if (s.clock) s.clockLeft.set(ply, Math.max(0, s.clock[s.user]) / s.clock.base);
     if (s.clock) s.clock[s.user] += s.clock.inc;
     const analysis = analyzeMove(before, played.move);
     s.analyses.set(s.game.history.length - 1, analysis);
@@ -343,6 +352,7 @@ export function renderGame(root: HTMLElement): () => void {
       if (s.clock) s.clock[opp] += s.clock.inc;
       lastBotMove = { before, move: choice.move };
       thinking = false;
+      s.turnStart = performance.now();
       refresh();
       if (s.game.status().over) return end();
       const why = button(`¿Por qué jugó eso?`, () => {
@@ -386,9 +396,12 @@ export function renderGame(root: HTMLElement): () => void {
     const n = plies ?? (s.game.position.turn === s.user ? 2 : 1);
     for (let i = 0; i < n && s.game.history.length; i++) {
       s.analyses.delete(s.game.history.length - 1);
+      s.moveMs.delete(s.game.history.length - 1);
+      s.clockLeft.delete(s.game.history.length - 1);
       s.game.undo();
     }
     board.clearMarks();
+    s.turnStart = performance.now();
     refresh(false);
   }
 
@@ -400,6 +413,8 @@ export function renderGame(root: HTMLElement): () => void {
       id: s.id, at: Date.now(), userColor: s.user, bot: { personality: s.setup.personality, level: s.setup.level },
       pgn: s.game.pgn({ White: s.user === 'w' ? profile.name || 'Tú' : bot.name, Black: s.user === 'b' ? profile.name || 'Tú' : bot.name }),
       result: st.result, reason: st.reason, userResult, timeControl: s.setup.clock, hintsUsed: s.hintsUsed,
+      moveTimes: [...s.moveMs.entries()].sort((a, b) => a[0] - b[0]).map(([, ms]) => ms),
+      clockFractions: s.clock ? [...s.clockLeft.entries()].sort((a, b) => a[0] - b[0]).map(([, f]) => Math.round(f * 1000) / 1000) : undefined,
     };
     if (s.game.history.length >= 2) {
       profile.games.push(record);
@@ -407,6 +422,8 @@ export function renderGame(root: HTMLElement): () => void {
       const clean = !profile.mistakes.some((m) => m.gameId === s.id);
       logActivity({ kind: 'game', ms: Date.now() - s.startedAt, ok: clean, ref: s.id });
       recordLearning(15, 'game');
+      // Revisión con Stockfish en segundo plano: errores posicionales, ejercicios y ADN.
+      void reviewInBackground(record);
     }
     const REASON: Record<string, string> = { checkmate: 'jaque mate', stalemate: 'ahogado', threefold: 'triple repetición', 'fifty-move': 'regla de 50 movimientos', 'insufficient-material': 'material insuficiente', resign: 'abandono', timeout: 'tiempo' };
     const title = userResult === 'win' ? '¡Victoria!' : userResult === 'draw' ? 'Tablas' : 'Derrota';

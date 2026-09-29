@@ -14,6 +14,7 @@
 12. [Contenido](12-contenido.md) — lecciones y puzzles, cómo se verifican y cómo añadir más.
 13. [Coach](13-coach.md) — recomendador, repaso espaciado, misiones, logros, reporte semanal y retirada de ayudas.
 14. [Stockfish](14-stockfish.md) — motor, robots, análisis con motor, libro de aperturas y verificación de contenido.
+15. [ADN](15-adn.md) — rasgos medidos, dimensiones con intervalo, evolución, consejos y aperturas.
 
 ## Convenciones
 

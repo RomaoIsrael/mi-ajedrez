@@ -10,6 +10,7 @@
     "@kavalo/pedagogy": "*",
     "@kavalo/content": "*",
     "@kavalo/coach": "*",
-    "@kavalo/engine": "*"
+    "@kavalo/engine": "*",
+    "@kavalo/dna": "*"
   }
 }

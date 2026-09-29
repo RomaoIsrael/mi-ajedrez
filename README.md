@@ -23,7 +23,8 @@ Principio rector: **no enseñar qué jugar, enseñar a pensar.** El éxito se mi
 | 6. Stockfish | Stockfish 19 en Web Worker, robots 1–10, análisis posicional, «¿Qué pasaba si…?», libro de aperturas, puzzles verificados con dos motores | ✅ [docs/14-stockfish.md](docs/14-stockfish.md) |
 | 7. Contenido | 21 lecciones (fundamentos, visión, táctica, aperturas, estrategia, finales) y 28 puzzles verificados, incluidos mates en 2 | ✅ [docs/12-contenido.md](docs/12-contenido.md) |
 | 8. Coach | Recomendador explicable, repaso espaciado de lecciones, misiones, logros, reporte semanal y retirada progresiva de ayudas | ✅ [docs/13-coach.md](docs/13-coach.md) |
-| 9–12 | ADN, personalización, pruebas, publicación | Pendiente |
+| 9. ADN | 8 dimensiones medidas con Stockfish, intervalos de confianza, evolución antes → ahora, estilo, plan según el ADN, aperturas compatibles y reporte mensual | ✅ [docs/15-adn.md](docs/15-adn.md) |
+| 10–12 | Personalización, pruebas, publicación | Pendiente |
 
 ## Probar el prototipo
 
@@ -32,8 +33,8 @@ Requiere Node.js ≥ 20. No hay dependencias externas.
 ```bash
 npm install --offline   # solo enlaza los paquetes del monorepo
 npm start               # compila y abre http://localhost:5173/apps/web-prototype/
-npm test                # 157 pruebas unitarias (reglas, Stockfish, lecciones, puzzles y coach)
-npm run test:e2e        # 5 recorridos con Playwright: app, tablero, lecciones, coach y Stockfish (con el servidor arrancado)
+npm test                # 165 pruebas unitarias (reglas, Stockfish, lecciones, puzzles, coach y ADN)
+npm run test:e2e        # 6 recorridos con Playwright: app, tablero, lecciones, coach, Stockfish y ADN (con el servidor arrancado)
 ```
 
 ```
@@ -45,6 +46,7 @@ packages/tactics     ChessExplanationEngine v0: hechos → explicación, pistas,
 packages/bots        rivales humanizados (niveles 1–6) con personalidad
 packages/pedagogy    repetición espaciada y modelo de dominio
 packages/content     mapa, 21 lecciones y 28 puzzles originales (verificados por tests)
+packages/dna         ADN: rasgos por partida, dimensiones con intervalo, consejos y aperturas
 packages/coach       recomendador, misiones, logros, reporte semanal y retirada de ayudas
 ```
 

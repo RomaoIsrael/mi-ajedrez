@@ -7,17 +7,18 @@
 import { bestMove } from '@kavalo/bots';
 import { Game, localizeSan, moveToUci, parseMove, type PlayedMove, type Position, type Square } from '@kavalo/chess-core';
 import { conceptById, LESSONS } from '@kavalo/content';
-import { describeEval, formatEval, scoreToCp, winProb } from '@kavalo/engine';
+import { describeEval, formatEval, winProb } from '@kavalo/engine';
 import {
-  analyzeMove, CLASS_LABEL, CLASS_SYMBOL, explain, hintLadder, moveEffects, pvToSan, reviewGame,
-  SEVERITY_LABEL, SEVERITY_SYMBOL, type Explanation, type PositionEval, type ReviewedMove,
+  analyzeMove, CLASS_LABEL, CLASS_SYMBOL, explain, hintLadder, moveEffects, pvToSan,
+  SEVERITY_LABEL, SEVERITY_SYMBOL, type Explanation, type ReviewedMove,
 } from '@kavalo/tactics';
 import { Board } from '../components/board.js';
 import { drawToggle, moveNavigator } from '../components/board-tools.js';
 import { coachBubble } from '../components/coach.js';
 import { append, button, h, navigate, primaryButton, screen } from '../dom.js';
 import { evaluate, getEngine } from '../engine.js';
-import { addReview, explanationLevel, mastery, profile, save, uid, type GameRecord } from '../state/store.js';
+import { ensureReviewed, reviewRecord } from '../state/review.js';
+import { explanationLevel, mastery, profile, type GameRecord } from '../state/store.js';
 
 interface Row {
   ply: number;
@@ -51,66 +52,12 @@ function tacticalRows(game: Game, color: 'w' | 'b'): Row[] {
   });
 }
 
-function engineRows(game: Game, record: GameRecord): { rows: Row[]; accuracy: number | null } {
-  const review = reviewGame(game.history, record.evals!, { level: explanationLevel(), fromStart: !/\[FEN /.test(record.pgn) });
+function engineRows(game: Game, record: GameRecord, review = reviewRecord(record, game)): { rows: Row[]; accuracy: number | null } {
   const rows = review.moves.filter((m) => m.color === record.userColor).map((m) => ({
     ply: m.ply, played: game.history[m.ply]!, rank: CLASS_RANK[m.moveClass], label: CLASS_LABEL.es[m.moveClass],
     symbol: CLASS_SYMBOL[m.moveClass], css: CLASS_CSS[m.moveClass], explanation: m.explanation, concept: m.concept, engine: m,
   }));
   return { rows, accuracy: review.accuracy[record.userColor] };
-}
-
-/** Evalúa todas las posiciones de la partida con Stockfish (con progreso). */
-async function computeEvals(game: Game, onProgress: (done: number, total: number) => void): Promise<PositionEval[] | null> {
-  const positions = [game.history[0]?.before ?? game.position, ...game.history.map((p) => p.after)];
-  const out: PositionEval[] = [];
-  for (let i = 0; i < positions.length; i++) {
-    const e = await evaluate(positions[i]!, { depth: 11 });
-    if (!e) return null;
-    out.push({ ...e, pv: e.pv.slice(0, 8) });
-    onProgress(i + 1, positions.length);
-  }
-  return out;
-}
-
-/**
- * Registra una vez los errores que solo el motor detecta (posicionales, victorias perdidas) y
- * convierte los momentos decisivos con solución única en ejercicios personales (brief §44).
- */
-async function recordEngineFindings(record: GameRecord, game: Game, rows: Row[]): Promise<number> {
-  if (record.engineRecorded) return 0;
-  record.engineRecorded = true;
-  let created = 0;
-  for (const r of rows) {
-    const m = r.engine;
-    if (!m || (m.moveClass !== 'mistake' && m.moveClass !== 'blunder' && m.moveClass !== 'missed-win')) continue;
-    const fen = r.played.before.toFen();
-    const tactical = profile.mistakes.some((x) => x.gameId === record.id && x.fen === fen);
-    if (!tactical) {
-      profile.mistakes.push({
-        at: record.at, gameId: record.id, kind: m.moveClass === 'missed-win' ? 'missed-win' : 'positional',
-        concept: 'calculation.candidates', severity: m.moveClass, fen, uci: m.uci,
-      });
-    }
-    if (!m.bestUci || profile.personalPuzzles.some((p) => p.fen === fen)) continue;
-    // Solo se crea el ejercicio si la mejor jugada es claramente única (MultiPV 2).
-    const engine = await getEngine();
-    if (!engine) break;
-    const a = await engine.analyse(fen, { depth: 12, multipv: 2 });
-    const [first, second] = a.lines;
-    if (!first || first.pv[0] !== m.bestUci) continue;
-    const gap = second ? scoreToCp(first) - scoreToCp(second) : Infinity;
-    if (gap < 150 || scoreToCp(first) < 100) continue;
-    const id = `pp-${uid()}`;
-    profile.personalPuzzles.push({
-      id, fen, accept: [m.bestUci], concept: r.concept ?? 'calculation.candidates', createdAt: Date.now(), gameId: record.id,
-      goal: first.mate !== undefined && first.mate > 0 ? 'mate' : 'material',
-    });
-    addReview(r.concept ?? 'calculation.candidates', id);
-    created++;
-  }
-  save();
-  return created;
 }
 
 /** Gráfica de la partida: probabilidad de victoria de las blancas por jugada (una serie). */
@@ -345,6 +292,8 @@ export function renderAnalysis(root: HTMLElement, [id]: string[]): void | (() =>
   if (record.evals && record.evals.length === total) {
     const { rows, accuracy } = engineRows(game, record);
     draw(rows, accuracy);
+    // Partidas analizadas antes de existir el ADN: se completan sus rasgos sin bloquear.
+    if (!record.features || !record.engineRecorded) void ensureReviewed(record);
   } else {
     draw(tacticalRows(game, record.userColor), null);
     void (async () => {
@@ -353,16 +302,13 @@ export function renderAnalysis(root: HTMLElement, [id]: string[]): void | (() =>
       const bar = h('div', { class: 'progress-bar' });
       const label = h('p', { class: 'muted small' }, 'Analizando con Stockfish…');
       progress.replaceChildren(label, h('div', { class: 'progress' }, bar));
-      const evals = await computeEvals(game, (done, all) => {
+      const outcome = await ensureReviewed(record, (done, all) => {
         bar.style.width = `${(done / all) * 100}%`;
         label.textContent = `Analizando con Stockfish… ${done}/${all} posiciones`;
       });
-      if (!evals) return;
-      record.evals = evals;
-      save();
-      const { rows, accuracy } = engineRows(game, record);
-      const created = await recordEngineFindings(record, game, rows);
-      if (!body.isConnected) return;
+      if (!outcome || !body.isConnected) return;
+      const { rows, accuracy } = engineRows(game, record, outcome.review);
+      const created = outcome.created;
       progress.replaceChildren();
       draw(rows, accuracy);
       if (created) progress.replaceChildren(h('p', { class: 'badge' }, `📌 ${created} ${created === 1 ? 'momento de esta partida se ha convertido' : 'momentos de esta partida se han convertido'} en ejercicios personales.`));

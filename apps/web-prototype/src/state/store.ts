@@ -10,6 +10,7 @@ import {
 import { dailyMissions, dayKey, lessonCardId, newAchievements, type ActivityEvent, type Achievement, type Mission } from '@kavalo/coach';
 import { LESSONS } from '@kavalo/content';
 import type { PositionEval } from '@kavalo/tactics';
+import type { DnaValue, GameFeatures } from '@kavalo/dna';
 
 export type Experience = 'never' | 'rules' | 'occasional' | 'frequent' | 'club' | 'competitive';
 export type CoachStyle = 'mentor' | 'master' | 'friend' | 'tactician' | 'motivator';
@@ -41,6 +42,12 @@ export interface GameRecord {
   evals?: PositionEval[];
   /** Ya se registraron los errores y ejercicios detectados por el motor. */
   engineRecorded?: boolean;
+  /** Milisegundos que el usuario tardó en cada una de sus jugadas. */
+  moveTimes?: number[];
+  /** Fracción del reloj que le quedaba al usuario en cada jugada (si había reloj). */
+  clockFractions?: number[];
+  /** Rasgos medidos con Stockfish (materia prima del ADN, docs/15-adn.md). */
+  features?: GameFeatures;
 }
 
 export interface PersonalPuzzle {
@@ -91,6 +98,8 @@ export interface Profile {
   achievements: Record<string, number>;
   /** Misiones cuya XP ya se cobró: día → ids. */
   missionsClaimed: Record<string, string[]>;
+  /** Instantáneas semanales del ADN para mostrar la evolución «antes → ahora». */
+  dnaSnapshots: { at: number; games: number; dims: DnaValue[] }[];
 }
 
 const KEY = 'kavalo.profile.v1';
@@ -104,7 +113,7 @@ function defaults(): Profile {
     },
     xp: 0, streak: { current: 0, best: 0, lastDay: null }, gameRating: 400, puzzleRating: 400,
     completedLessons: [], mastery: {}, reviews: [], mistakes: [], games: [], personalPuzzles: [], solvedPuzzles: [],
-    activity: [], ratingHistory: [], achievements: {}, missionsClaimed: {},
+    activity: [], ratingHistory: [], achievements: {}, missionsClaimed: {}, dnaSnapshots: [],
   };
 }
 

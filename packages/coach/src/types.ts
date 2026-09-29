@@ -3,6 +3,7 @@
  * la app le pasa su perfil y el coach responde sin efectos secundarios (funciones puras).
  */
 import type { ConceptMastery, ReviewCard } from '@kavalo/pedagogy';
+import type { DnaValue, GameFeatures } from '@kavalo/dna';
 
 export type ActivityKind = 'lesson' | 'review' | 'puzzle' | 'game' | 'mastery';
 
@@ -30,6 +31,8 @@ export interface CoachGame {
   userResult: 'win' | 'loss' | 'draw';
   reason?: string;
   hintsUsed: number;
+  /** Rasgos medidos con Stockfish (materia prima del ADN). */
+  features?: GameFeatures;
 }
 
 export interface CoachMistake {
@@ -53,6 +56,8 @@ export interface CoachState {
   activity: ActivityEvent[];
   ratingHistory: { at: number; kind: 'game' | 'puzzle'; rating: number }[];
   achievements: Record<string, number>;
+  /** Instantáneas del ADN (evolución «antes → ahora»). */
+  dnaSnapshots?: { at: number; games: number; dims: DnaValue[] }[];
 }
 
 export const DAY = 86_400_000;

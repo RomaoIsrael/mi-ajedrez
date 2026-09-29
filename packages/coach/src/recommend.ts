@@ -7,6 +7,7 @@
  */
 import { conceptById, LESSONS, SECTIONS, type Lesson } from '@kavalo/content';
 import { dueCards } from '@kavalo/pedagogy';
+import { computeDna, dnaAdvice } from '@kavalo/dna';
 import { KIND_CONCEPT, KIND_TOPIC, mistakeStats } from './stats.js';
 import { DAY, dayKey, type CoachState } from './types.js';
 
@@ -148,7 +149,21 @@ export function recommendations(state: CoachState, now = Date.now()): Recommenda
   // Se ofrece la mejor lección y, como alternativa, la siguiente del mapa si es distinta.
   out.push(...lessonCandidates.slice(0, 2));
 
-  // 5) Aplicar lo aprendido en una partida.
+  // 5) Uso pedagógico del ADN (docs/06-inteligencia.md §1.4).
+  const features = state.games.map((g) => g.features).filter((f): f is NonNullable<typeof f> => !!f);
+  const advice = dnaAdvice(computeDna(features))[0];
+  if (advice) {
+    const lessonDone = advice.lessonId ? state.completedLessons.includes(advice.lessonId) : true;
+    const r: Recommendation = {
+      id: `dna:${advice.id}`, title: 'Plan según tu ADN', concept: advice.concept, reason: advice.message,
+      factors: [`Tendencia medida en tus últimas ${Math.min(30, features.length)} partidas analizadas (+58).`],
+      score: 58, action: advice.lessonId && !lessonDone && isUnlocked(state, advice.concept) ? { type: 'lesson', lessonId: advice.lessonId } : { type: 'puzzles', concept: advice.concept },
+    };
+    fatigue(r);
+    out.push(r);
+  }
+
+  // 6) Aplicar lo aprendido en una partida.
   const lastGame = state.games.at(-1)?.at ?? 0;
   const lessonsSince = state.activity.filter((a) => a.kind === 'lesson' && a.first && a.at > lastGame).length;
   const play: Recommendation = {
