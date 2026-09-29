@@ -54,3 +54,48 @@ test('rendimiento: el nivel 6 responde en tiempo razonable en el medio juego', (
   assert.ok(ms < 8000, `${ms.toFixed(0)} ms`);
   console.log(`  nivel 6: ${ms.toFixed(0)} ms`);
 });
+
+test('hay 10 niveles; del 7 al 10 juegan con Stockfish por Elo', async () => {
+  const { BOT_LEVELS, LOCAL_LEVELS } = await import('../dist/index.js');
+  assert.equal(BOT_LEVELS.length, 10);
+  assert.equal(LOCAL_LEVELS, 6);
+  assert.ok(BOT_LEVELS.slice(6).every((l) => !l.engine.humanize));
+  assert.ok(BOT_LEVELS.slice(0, 6).every((l) => l.engine.humanize && l.engine.nodes && l.engine.multipv));
+});
+
+test('chooseMoveAsync devuelve una jugada legal sin bloquear', async () => {
+  const { chooseMoveAsync } = await import('../dist/index.js');
+  const pos = Position.start();
+  const { move } = await chooseMoveAsync(pos, { level: 4, random: seeded(9) });
+  assert.ok(pos.legalMoves().some((m) => m.from === move.from && m.to === move.to));
+});
+
+test('humanización de candidatas de Stockfish: los niveles bajos se equivocan más', async () => {
+  const { chooseFromCandidates } = await import('../dist/index.js');
+  const { createNodeEngine } = await import('../../../tools/stockfish-node.mjs');
+  const { scoreToCp } = await import('@kavalo/engine');
+  const engine = createNodeEngine();
+  try {
+    const pos = Game.fromPgn('1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d3 Bc5 5. Nc3 d6').position;
+    const a = await engine.analyse(pos.toFen(), { depth: 12, multipv: 8 });
+    const candidates = a.lines.map((l) => ({ uci: l.pv[0], cp: scoreToCp(l) }));
+    const bestCp = candidates[0].cp;
+    const errors = (level) => {
+      const rnd = seeded(11);
+      let n = 0;
+      for (let i = 0; i < 40; i++) {
+        const c = chooseFromCandidates(pos, candidates, { level, random: rnd });
+        const found = candidates.find((x) => x.uci === `${sq(c.move.from)}${sq(c.move.to)}`);
+        if (!found || bestCp - found.cp > 80) n++;
+      }
+      return n;
+    };
+    const low = errors(1);
+    const high = errors(6);
+    assert.ok(low > high, `nivel 1: ${low} errores, nivel 6: ${high}`);
+  } finally {
+    engine.quit();
+  }
+});
+
+const sq = (i) => 'abcdefgh'[i & 7] + ((i >> 3) + 1);

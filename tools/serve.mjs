@@ -7,7 +7,7 @@ const ROOT = resolve(new URL('..', import.meta.url).pathname);
 const PORT = Number(process.argv[2] ?? process.env.PORT ?? 5173);
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
-  '.svg': 'image/svg+xml', '.json': 'application/json', '.map': 'application/json', '.png': 'image/png',
+  '.svg': 'image/svg+xml', '.wasm': 'application/wasm', '.webmanifest': 'application/manifest+json', '.md': 'text/markdown; charset=utf-8', '.json': 'application/json', '.map': 'application/json', '.png': 'image/png',
 };
 
 createServer(async (req, res) => {

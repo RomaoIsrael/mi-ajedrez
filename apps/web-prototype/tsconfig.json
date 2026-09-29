@@ -8,6 +8,7 @@
     { "path": "../../packages/bots" },
     { "path": "../../packages/pedagogy" },
     { "path": "../../packages/content" },
-    { "path": "../../packages/coach" }
+    { "path": "../../packages/coach" },
+    { "path": "../../packages/engine" }
   ]
 }

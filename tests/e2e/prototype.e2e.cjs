@@ -69,7 +69,7 @@ function check(cond, msg) {
   await p.goto(BASE + '#/puzzles');
   await p.reload();
   await p.waitForSelector('.puzzle-prompt');
-  await p.click(sq('d1')); await p.click(sq('d5'));
+  await p.click(sq('e2')); await p.click(sq('b5'));
   await p.waitForSelector('text=SIGUIENTE');
   check((await p.locator('.msg-good').first().innerText()).startsWith('¡Correcto!'), 'puzzle resuelto y rating actualizado');
 

@@ -7,6 +7,8 @@ export const KIND_LABEL: Record<string, string> = {
   'allows-mate': 'Permitir mate',
   'missed-mate': 'Mates no vistos',
   'missed-capture': 'Capturas no vistas',
+  positional: 'Errores posicionales',
+  'missed-win': 'Victorias perdidas',
 };
 
 /** Tema de entrenamiento en positivo para cada tipo de error. */
@@ -16,6 +18,8 @@ export const KIND_TOPIC: Record<string, string> = {
   'allows-mate': 'la seguridad de tu rey',
   'missed-mate': 'encontrar mates',
   'missed-capture': 'ver piezas rivales indefensas',
+  positional: 'comparar jugadas candidatas',
+  'missed-win': 'rematar las partidas ganadas',
 };
 
 /** Concepto que entrena cada tipo de error. */
@@ -25,6 +29,8 @@ export const KIND_CONCEPT: Record<string, string> = {
   'allows-mate': 'vision.threats',
   'missed-mate': 'tactics.mate-in-1',
   'missed-capture': 'vision.undefended-pieces',
+  positional: 'calculation.candidates',
+  'missed-win': 'calculation.candidates',
 };
 
 export interface MistakeStat { kind: string; label: string; count: number; perGame: number; games: number }

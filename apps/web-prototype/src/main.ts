@@ -15,6 +15,7 @@ import { renderPuzzles } from './screens/puzzles.js';
 import { renderSettings } from './screens/settings.js';
 import { checkRewards, onReward, profile } from './state/store.js';
 import { applyTheme } from './theme.js';
+import { getEngine } from './engine.js';
 
 type Render = (root: HTMLElement, params: string[]) => void | (() => void);
 
@@ -75,3 +76,5 @@ window.addEventListener('hashchange', route);
 route();
 // Logros ya merecidos por perfiles anteriores a esta versión.
 if (profile.onboarded) checkRewards();
+// Stockfish se carga en segundo plano, sin retrasar la primera pantalla.
+setTimeout(() => void getEngine(), 1500);

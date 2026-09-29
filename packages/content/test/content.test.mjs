@@ -129,3 +129,24 @@ test('pickPuzzle prioriza conceptos débiles y dificultad adecuada', () => {
   assert.equal(Math.min(...PUZZLES.map((p) => Math.abs(p.rating - 450))), Math.abs(easy.rating - 450));
   assert.equal(pickPuzzle({ rating: 400, weakConcepts: ['tactics.fork'] }).concept, 'tactics.fork');
 });
+
+test('aperturas: todas las líneas del libro son legales y completas', async () => {
+  const { OPENINGS, inBook, detectOpening } = await import('../dist/index.js');
+  const { Game } = await import('@kavalo/chess-core');
+  for (const o of OPENINGS) {
+    for (const line of [o.line, ...(o.variations ?? [])]) {
+      const g = new Game();
+      for (const san of line) assert.ok(g.move(san), `${o.id}: ${san} ilegal en ${line.join(' ')}`);
+    }
+    for (const k of ['objective', 'structure', 'keyPieces', 'middlegame', 'endgame']) assert.ok(o[k].length > 20, `${o.id}.${k}`);
+    for (const k of ['plans', 'breaks', 'commonMistakes', 'traps', 'keySquares']) assert.ok(o[k].length >= 1, `${o.id}.${k}`);
+    if (o.color === 'b') assert.ok(o.against);
+  }
+  assert.equal(OPENINGS.length, 13);
+  assert.equal(new Set(OPENINGS.map((o) => o.id)).size, 13);
+  assert.ok(inBook(['e4', 'e5', 'Nf3']));
+  assert.ok(!inBook(['e4', 'e5', 'Qh5']));
+  assert.equal(detectOpening(['e4', 'c5', 'Nf3', 'd6']).id, 'sicilian');
+  assert.equal(detectOpening(['d4', 'd5', 'Bf4', 'Nf6']).id, 'london');
+  assert.equal(detectOpening(['a3']), null);
+});

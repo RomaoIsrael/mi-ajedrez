@@ -5,6 +5,9 @@
       "path": "packages/chess-core"
     },
     {
+      "path": "packages/engine"
+    },
+    {
       "path": "packages/tactics"
     },
     {

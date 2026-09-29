@@ -3,12 +3,14 @@ import { Position } from '@kavalo/chess-core';
 import { Board } from '../components/board.js';
 import { COACHES } from '../components/coach.js';
 import { cue } from '../feedback.js';
+import { engineLabel, engineStatus, getEngine, onEngineStatus } from '../engine.js';
 import { button, h, navigate, screen } from '../dom.js';
 import { profile, resetProfile, save, type BoardTheme, type CoachStyle, type HelpLevel } from '../state/store.js';
 import { applyTheme } from '../theme.js';
 
-export function renderSettings(root: HTMLElement): void {
-  const rerender = () => { save(); applyTheme(); root.replaceChildren(); renderSettings(root); };
+export function renderSettings(root: HTMLElement): () => void {
+  let offInner: (() => void) | null = null;
+  const rerender = () => { save(); applyTheme(); off(); root.replaceChildren(); offInner = renderSettings(root); };
   const select = <T extends string>(label: string, value: T, options: [T, string][], set: (v: T) => void) => {
     const sel = h('select', { class: 'input', 'aria-label': label }, ...options.map(([v, l]) => h('option', { value: v, selected: v === value }, l)));
     sel.addEventListener('change', () => { set(sel.value as T); rerender(); });
@@ -19,6 +21,10 @@ export function renderSettings(root: HTMLElement): void {
     input.addEventListener('change', () => { set(input.checked); rerender(); });
     return h('label', { class: 'field field-inline' }, input, h('span', {}, label));
   };
+  const engineText = () => `Motor de análisis: ${engineStatus() === 'ready' ? `${engineLabel()} · listo` : engineStatus() === 'unavailable' ? 'no disponible (se usa el motor propio)' : 'cargando…'}`;
+  const engineLine = h('p', { class: 'small engine-line' }, engineText());
+  const off = onEngineStatus(() => { engineLine.textContent = engineText(); });
+  void getEngine();
   const preview = new Board({ coordinates: profile.settings.coordinates, reduceMotion: true });
   preview.setPosition(Position.fromFen('r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3'), { from: 57, to: 42 }, false);
   preview.setHighlights([28], 'hint');
@@ -33,7 +39,10 @@ export function renderSettings(root: HTMLElement): void {
       select<CoachStyle>('Entrenador', profile.coachStyle, (Object.keys(COACHES) as CoachStyle[]).map((k) => [k, `${COACHES[k].name} — ${COACHES[k].desc}`]), (v) => { profile.coachStyle = v; })),
     h('div', { class: 'card' }, h('h2', {}, 'Ayudas'),
       select<HelpLevel>('Nivel de explicaciones', profile.settings.helpLevel, [['auto', 'Automático (según tu nivel)'], ['beginner', 'Principiante'], ['intermediate', 'Intermedio'], ['advanced', 'Avanzado']], (v) => { profile.settings.helpLevel = v; }),
-      h('p', { class: 'muted small' }, 'Las ayudas se retiran progresivamente a medida que dejas de necesitarlas.')),
+      toggle('Mostrar barra de evaluación en partidas', profile.settings.evalBar, (v) => { profile.settings.evalBar = v; }),
+      h('p', { class: 'muted small' }, 'Desactivada por defecto: el objetivo es aprender a evaluar tú. Para principiantes muestra palabras, no números.'),
+      h('p', { class: 'muted small' }, 'Las ayudas se retiran progresivamente a medida que dejas de necesitarlas.'),
+      engineLine),
     h('div', { class: 'card' }, h('h2', {}, 'Tablero'),
       select<BoardTheme>('Tema del tablero', profile.settings.boardTheme, [
         ['slate', 'Pizarra y marfil'], ['walnut', 'Nogal'], ['marble', 'Mármol'], ['ocean', 'Océano'], ['forest', 'Bosque'], ['contrast', 'Alto contraste'],
@@ -63,4 +72,5 @@ export function renderSettings(root: HTMLElement): void {
           if (confirm('Se borrará tu progreso de este dispositivo. ¿Continuar?')) { resetProfile(); navigate('#/'); location.reload(); }
         }))),
   ));
+  return () => { off(); offInner?.(); };
 }

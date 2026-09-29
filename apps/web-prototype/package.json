@@ -9,6 +9,7 @@
     "@kavalo/bots": "*",
     "@kavalo/pedagogy": "*",
     "@kavalo/content": "*",
-    "@kavalo/coach": "*"
+    "@kavalo/coach": "*",
+    "@kavalo/engine": "*"
   }
 }

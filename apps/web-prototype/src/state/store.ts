@@ -9,6 +9,7 @@ import {
 } from '@kavalo/pedagogy';
 import { dailyMissions, dayKey, lessonCardId, newAchievements, type ActivityEvent, type Achievement, type Mission } from '@kavalo/coach';
 import { LESSONS } from '@kavalo/content';
+import type { PositionEval } from '@kavalo/tactics';
 
 export type Experience = 'never' | 'rules' | 'occasional' | 'frequent' | 'club' | 'competitive';
 export type CoachStyle = 'mentor' | 'master' | 'friend' | 'tactician' | 'motivator';
@@ -36,6 +37,10 @@ export interface GameRecord {
   userResult: 'win' | 'loss' | 'draw';
   timeControl: string;
   hintsUsed: number;
+  /** Evaluaciones de Stockfish por posición (se calculan una vez y se guardan). */
+  evals?: PositionEval[];
+  /** Ya se registraron los errores y ejercicios detectados por el motor. */
+  engineRecorded?: boolean;
 }
 
 export interface PersonalPuzzle {
@@ -66,6 +71,7 @@ export interface Profile {
     boardTheme: BoardTheme;
     colorblind: 'none' | 'deutan' | 'tritan';
     textScale: number;
+    evalBar: boolean;
   };
   xp: number;
   streak: { current: number; best: number; lastDay: string | null };
@@ -94,7 +100,7 @@ function defaults(): Profile {
     version: 1, onboarded: false, name: '', experience: 'never', goal: 'learn', dailyMinutes: 20, coachStyle: 'mentor',
     settings: {
       theme: 'system', coordinates: true, reduceMotion: false, helpLevel: 'auto', sound: false, vibration: false,
-      boardTheme: 'slate', colorblind: 'none', textScale: 100,
+      boardTheme: 'slate', colorblind: 'none', textScale: 100, evalBar: false,
     },
     xp: 0, streak: { current: 0, best: 0, lastDay: null }, gameRating: 400, puzzleRating: 400,
     completedLessons: [], mastery: {}, reviews: [], mistakes: [], games: [], personalPuzzles: [], solvedPuzzles: [],

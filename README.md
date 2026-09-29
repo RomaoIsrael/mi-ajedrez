@@ -20,7 +20,7 @@ Principio rector: **no enseñar qué jugar, enseñar a pensar.** El éxito se mi
 | 3. Arquitectura | Funcional, técnica, Stockfish, base de datos, modelos | ✅ Documentado |
 | 4. Prototipo navegable | App web con tablero real, lecciones, partidas con coach, análisis, puzzles, progreso y ADN básico | ✅ [docs/10-prototipo.md](docs/10-prototipo.md) |
 | 5. Tablero | Flechas y círculos del usuario, navegación ◀ ▶, teclado, jugada escrita, 6 temas, daltonismo, animaciones, sonidos | ✅ [docs/11-tablero.md](docs/11-tablero.md) |
-| 6. Stockfish | Motor fuerte en Web Worker, análisis posicional, bots 7–10 | ⏭ Siguiente (requiere acceso a npm) |
+| 6. Stockfish | Stockfish 19 en Web Worker, robots 1–10, análisis posicional, «¿Qué pasaba si…?», libro de aperturas, puzzles verificados con dos motores | ✅ [docs/14-stockfish.md](docs/14-stockfish.md) |
 | 7. Contenido | 21 lecciones (fundamentos, visión, táctica, aperturas, estrategia, finales) y 28 puzzles verificados, incluidos mates en 2 | ✅ [docs/12-contenido.md](docs/12-contenido.md) |
 | 8. Coach | Recomendador explicable, repaso espaciado de lecciones, misiones, logros, reporte semanal y retirada progresiva de ayudas | ✅ [docs/13-coach.md](docs/13-coach.md) |
 | 9–12 | ADN, personalización, pruebas, publicación | Pendiente |
@@ -32,13 +32,15 @@ Requiere Node.js ≥ 20. No hay dependencias externas.
 ```bash
 npm install --offline   # solo enlaza los paquetes del monorepo
 npm start               # compila y abre http://localhost:5173/apps/web-prototype/
-npm test                # 115 pruebas unitarias (motor, lecciones, puzzles y coach)
-npm run test:e2e        # 4 recorridos con Playwright: app, tablero, las 21 lecciones y el coach (con el servidor arrancado)
+npm test                # 157 pruebas unitarias (reglas, Stockfish, lecciones, puzzles y coach)
+npm run test:e2e        # 5 recorridos con Playwright: app, tablero, lecciones, coach y Stockfish (con el servidor arrancado)
 ```
 
 ```
 apps/web-prototype   interfaz (TypeScript + DOM, sin framework)
 packages/chess-core  reglas, FEN, SAN, PGN
+packages/engine      cliente UCI para Stockfish y clasificación de jugadas
+vendor/stockfish     Stockfish 19 Lite (WASM, GPLv3)
 packages/tactics     ChessExplanationEngine v0: hechos → explicación, pistas, ¿Por qué?
 packages/bots        rivales humanizados (niveles 1–6) con personalidad
 packages/pedagogy    repetición espaciada y modelo de dominio

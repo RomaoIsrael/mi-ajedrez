@@ -2,8 +2,10 @@
  * Jugar: configuración (rival, nivel, color, reloj, Coach Mode) y partida con
  * pistas progresivas, aviso de amenazas, explicación inmediata de errores y checklist.
  */
-import { BOT_LEVELS, PERSONALITIES, bestMove, chooseMove, type Personality } from '@kavalo/bots';
-import { Game, localizeSan, moveToUci, type Color, type PieceType, type Square } from '@kavalo/chess-core';
+import { BOT_LEVELS, LOCAL_LEVELS, PERSONALITIES, bestMove, chooseFromCandidates, chooseMoveAsync, type Personality } from '@kavalo/bots';
+import { describeEval, formatEval, scoreToCp, winProb } from '@kavalo/engine';
+import { engineBestMove, engineStatus, evaluate, getEngine } from '../engine.js';
+import { Game, localizeSan, moveToUci, parseMove, type Color, type Move, type PieceType, type Position, type Square } from '@kavalo/chess-core';
 import {
   analyzeMove, explain, hintLadder, moveEffects, SEVERITY_SYMBOL, threatWarning,
   type HintLadder, type MoveAnalysis,
@@ -53,7 +55,12 @@ export function renderPlaySetup(root: HTMLElement): void {
   root.append(screen('Nueva partida',
     group('Rival', (Object.keys(PERSONALITIES) as Personality[]).map((p) => seg('personality', p, PERSONALITIES[p].name, PERSONALITIES[p].style.es))),
     h('p', { class: 'muted small' }, PERSONALITIES[setup.personality].style.es),
-    group('Nivel', BOT_LEVELS.map((l) => seg('level', l.level, String(l.level), l.name.es))),
+    group('Nivel', BOT_LEVELS.map((l) => {
+      const b = seg('level', l.level, String(l.level), l.name.es);
+      if (l.level > LOCAL_LEVELS && engineStatus() === 'unavailable') { b.disabled = true; b.title = 'Requiere el motor Stockfish'; }
+      return b;
+    })),
+    h('p', { class: 'muted small engine-status' }, engineStatus() === 'ready' ? '♞ Stockfish listo: niveles 1–10 disponibles.' : engineStatus() === 'unavailable' ? 'Stockfish no está disponible en este navegador: niveles 1–6 con el motor propio.' : 'Cargando Stockfish en segundo plano…'),
     h('p', { class: 'muted small' }, `${BOT_LEVELS[setup.level - 1]!.name.es} · ~${BOT_LEVELS[setup.level - 1]!.elo} Elo${setup.level === recommendedLevel ? ' · recomendado para ti' : ''}. Los niveles bajos cometen errores humanos, no juegan al azar.`),
     group('Tu color', [seg('color', 'w', 'Blancas'), seg('color', 'b', 'Negras'), seg('color', 'random', 'Al azar')]),
     group('Reloj', Object.entries(CLOCKS).map(([k, v]) => seg('clock', k, v ? v.label : 'Sin reloj'))),
@@ -108,6 +115,23 @@ export function renderGame(root: HTMLElement): () => void {
     onMove: onUserMove,
   });
   const coachPanel = h('div', { class: 'game-coach' });
+  // Barra de evaluación opcional (desactivada por defecto: el objetivo es pensar, no mirar números).
+  const evalFill = h('div', { class: 'eval-fill' });
+  const evalText = h('span', { class: 'eval-text' });
+  const evalBar = h('div', { class: 'eval-bar', role: 'img', 'aria-label': 'Evaluación' }, evalFill, evalText);
+  async function updateEvalBar() {
+    if (!profile.settings.evalBar) return;
+    const pos = s.game.position;
+    const e = await evaluate(pos, { depth: 10 });
+    if (!e || s.game.position !== pos) return;
+    const whiteCp = pos.turn === 'w' ? e.cp : -e.cp;
+    const userCp = s.user === 'w' ? whiteCp : -whiteCp;
+    evalFill.style.height = `${Math.round(winProb(whiteCp) * 100)}%`;
+    const text = explanationLevel() === 'beginner' ? describeEval(userCp) : formatEval(e.mate !== undefined ? { mate: e.mate } : { cp: whiteCp });
+    evalText.textContent = explanationLevel() === 'beginner' ? '' : text;
+    evalBar.setAttribute('aria-label', `Evaluación: ${describeEval(userCp)}`);
+    evalBar.title = describeEval(userCp);
+  }
   const moveList = h('ol', { class: 'movelist', 'aria-label': 'Jugadas' });
   const clockEl = { w: h('span', { class: 'clock' }), b: h('span', { class: 'clock' }) };
   // Retirada progresiva de ayudas: cada recordatorio desaparece cuando ya no hace falta.
@@ -130,7 +154,7 @@ export function renderGame(root: HTMLElement): () => void {
   const entry = moveInput(() => (viewing === null && !thinking && s.game.position.turn === s.user ? s.game.position : null),
     (m) => onUserMove(m.from, m.to, m.promotion));
 
-  const hintBtn = button('Pista', () => showHint());
+  const hintBtn = button('Pista', () => void showHint());
   const undoBtn = button('Deshacer', () => undo());
   const actions = h('div', { class: 'game-actions' },
     s.setup.coach ? hintBtn : null,
@@ -141,7 +165,7 @@ export function renderGame(root: HTMLElement): () => void {
 
   root.append(screen(null,
     h('div', { class: 'player-bar' }, h('span', {}, h('strong', {}, bot.name), ` · ${bot.style.es.split(' · ')[0]} · Nivel ${level.level}`), clockEl[opp]),
-    h('div', { class: 'board-holder' }, board.el),
+    h('div', { class: `board-holder${profile.settings.evalBar ? ' with-eval' : ''}` }, profile.settings.evalBar ? evalBar : null, board.el),
     h('div', { class: 'player-bar' }, h('span', {}, h('strong', {}, profile.name || 'Tú')), clockEl[s.user]),
     reviewBanner, nav.el, actions, coachPanel, entry, checklist, moveList));
 
@@ -156,6 +180,7 @@ export function renderGame(root: HTMLElement): () => void {
     if (last && animate) moveCue(last, s.game.status());
     if (s.game.status().reason === 'checkmate') board.celebrateMate(s.game.position.kingSquare(s.game.position.turn));
     nav.update(s.game.history.length + 1, s.game.history.length);
+    void updateEvalBar();
     renderMoves();
     renderClocks();
     ladder = null;
@@ -275,13 +300,45 @@ export function renderGame(root: HTMLElement): () => void {
     save();
   }
 
+  /**
+   * Jugada del robot: niveles 7–10 con Stockfish limitado por Elo; niveles 1–6 con candidatas
+   * MultiPV de Stockfish humanizadas; sin motor, el buscador propio (asíncrono, sin congelar).
+   */
+  async function pickBotMove(pos: Position): Promise<Move> {
+    const cfg = level.engine;
+    const engine = await getEngine();
+    if (engine) {
+      try {
+        const a = cfg.humanize
+          ? await engine.analyse(pos.toFen(), { nodes: cfg.nodes, multipv: cfg.multipv })
+          : await engine.analyse(pos.toFen(), { movetime: cfg.movetime, ...(cfg.elo ? { elo: cfg.elo } : {}) });
+        if (!cfg.humanize && a.bestmove) {
+          const m = parseMove(pos, a.bestmove);
+          if (m) return m;
+        }
+        if (cfg.humanize && a.lines.length) {
+          const candidates = a.lines.map((l) => ({ uci: l.pv[0]!, cp: scoreToCp(l) }));
+          return chooseFromCandidates(pos, candidates, { level: s.setup.level, personality: s.setup.personality }).move;
+        }
+      } catch {
+        /* si el motor falla, se usa el buscador propio */
+      }
+    }
+    return (await chooseMoveAsync(pos, { level: s.setup.level, personality: s.setup.personality })).move;
+  }
+
   function botMove() {
     if (s.game.status().over || s.game.position.turn === s.user) return;
     thinking = true;
     say([`${bot.name} está pensando…`]);
-    setTimeout(() => {
+    const started = performance.now();
+    void (async () => {
       const before = s.game.position;
-      const choice = chooseMove(before, { level: s.setup.level, personality: s.setup.personality });
+      const move = await pickBotMove(before);
+      // Un mínimo de «tiempo de reflexión» hace la partida más natural.
+      await new Promise((r) => setTimeout(r, Math.max(0, 350 - (performance.now() - started))));
+      if (s.game.position !== before) return;
+      const choice = { move };
       s.game.move({ from: choice.move.from, to: choice.move.to, promotion: choice.move.promotion });
       if (s.clock) s.clock[opp] += s.clock.inc;
       lastBotMove = { before, move: choice.move };
@@ -301,12 +358,18 @@ export function renderGame(root: HTMLElement): () => void {
       } else if (s.setup.coach) {
         say([h('p', { class: 'muted' }, 'Tu turno. ¿Qué hizo tu rival? ¿Qué amenaza?')], [why]);
       } else coachPanel.replaceChildren();
-    }, 350);
+    })();
   }
 
-  function showHint() {
+  async function showHint() {
     if (thinking || s.game.status().over || s.game.position.turn !== s.user) return;
-    if (!ladder) ladder = hintLadder(s.game.position, { fallback: bestMove(s.game.position, 2) ?? undefined });
+    if (!ladder) {
+      const pos = s.game.position;
+      // Pistas tácticas propias primero; si no hay nada táctico, la sugerencia la da Stockfish.
+      const fallback = (await engineBestMove(pos)) ?? bestMove(pos, 2) ?? undefined;
+      if (s.game.position !== pos) return;
+      ladder = hintLadder(pos, { fallback });
+    }
     if (!ladder) return;
     hintStep = Math.min(5, hintStep + 1);
     s.hintsUsed++;
@@ -315,7 +378,7 @@ export function renderGame(root: HTMLElement): () => void {
     board.setHighlights(cur.highlights, cur.level === 2 ? 'zone' : 'hint');
     board.setArrows(cur.arrows);
     say([h('ol', { class: 'hints' }, ...steps.map((st) => h('li', {}, st.text)))],
-      hintStep < 5 ? [button(`Pista ${hintStep + 1}/5`, showHint)] : []);
+      hintStep < 5 ? [button(`Pista ${hintStep + 1}/5`, () => void showHint())] : []);
   }
 
   function undo(plies?: number) {
