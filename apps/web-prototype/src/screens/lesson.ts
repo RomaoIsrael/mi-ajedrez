@@ -1,6 +1,8 @@
 /** Lección EMPCRAE paso a paso: explicar, mostrar, practicar, corregir y comprobar. */
 import { Game, parseSquare, Position, squareName, type Square } from '@kavalo/chess-core';
 import { lessonById, PUZZLES, type LessonStep } from '@kavalo/content';
+import { bestMove } from '@kavalo/bots';
+import { hintLadder } from '@kavalo/tactics';
 import { Board } from '../components/board.js';
 import { cue } from '../feedback.js';
 import { coachBubble, COACHES } from '../components/coach.js';
@@ -81,7 +83,10 @@ export function renderLesson(root: HTMLElement, [id]: string[]): void {
               mistakes++;
               board.addHighlight(sq, 'bad');
               setTimeout(() => { board.setHighlights([...found], 'good'); }, 600);
-              message(`${step.wrong} (tocaste ${squareName(sq)})`, 'bad');
+              // Si la respuesta son piezas y se tocó una casilla vacía, se dice eso en lugar del error genérico.
+              const askingForPieces = pos !== null && step.answer.every((a) => pos.get(parseSquare(a)) !== null);
+              const empty = pos !== null && pos.get(sq) === null;
+              message(askingForPieces && empty ? `En ${squareName(sq)} no hay ninguna pieza. Toca una pieza.` : `${step.wrong} (tocaste ${squareName(sq)})`, 'bad');
             }
           },
         });
@@ -116,16 +121,30 @@ export function renderLesson(root: HTMLElement, [id]: string[]): void {
       case 'reach': {
         const target = parseSquare(step.target);
         let current = pos!;
+        let pieceSq = parseSquare(step.from);
         let used = 0;
+        const unit = current.get(pieceSq)?.type === 'n' ? 'Saltos' : 'Movimientos';
         board.setHighlights([target], 'hint');
-        message(`${step.text} Saltos: 0/${step.maxMoves}`);
+        message(`${step.text} ${unit}: 0/${step.maxMoves}`);
         setInteraction({
           movable: () => 'w',
           onMove: (from, to) => {
             const move = current.legalMoves(from).find((m) => m.to === to);
-            if (!move || move.piece !== 'n') return false;
+            if (!move || from !== pieceSq) {
+              message(`En este ejercicio solo se mueve la pieza de ${squareName(pieceSq)}.`, 'bad');
+              return false;
+            }
+            let next: Position;
+            try {
+              next = current.play(move).withTurn('w'); // modo "pieza libre": siempre mueves tú
+            } catch {
+              // La jugada daría jaque al rey negro: en este ejercicio de recorrido no se usa.
+              message('Esa casilla da jaque al rey rival. En este ejercicio busca otra ruta.', 'bad');
+              return false;
+            }
             used++;
-            current = current.play(move).withTurn('w'); // modo "pieza libre": siempre mueves tú
+            pieceSq = to;
+            current = next;
             board.setPosition(current, { from, to });
             board.setHighlights([target], 'hint');
             if (to === target) {
@@ -137,8 +156,69 @@ export function renderLesson(root: HTMLElement, [id]: string[]): void {
               message(step.wrong, 'bad', [button('Reintentar', () => show())]);
               setInteraction({});
             } else {
-              message(`${step.text} Saltos: ${used}/${step.maxMoves}`);
+              message(`${step.text} ${unit}: ${used}/${step.maxMoves}`);
             }
+            return true;
+          },
+        });
+        break;
+      }
+
+      case 'play': {
+        // Práctica real contra un defensor que busca la mejor resistencia.
+        const game = new Game(step.fen);
+        const user = game.position.turn;
+        let played = 0;
+        const status = () => `${step.text} Jugadas: ${played}/${step.maxMoves}`;
+        const retry = () => button('Reintentar', () => show());
+        const hint = () => button('Pista', () => {
+          const ladder = hintLadder(game.position);
+          const text = ladder ? ladder.steps[ladder.concept === 'tactics.mate-in-1' ? 0 : 1]!.text
+            : 'Usa la dama para dejar al rey rival en una «caja» cada vez más pequeña, a un salto de caballo de distancia, y acerca tu rey. Antes de mover, comprueba que el rival conserva al menos una casilla.';
+          message(text, 'info', [hint()]);
+        });
+        message(status(), 'info', [hint()]);
+        setInteraction({
+          movable: () => (game.position.turn === user && !game.status().over ? user : null),
+          onMove: (from, to, promotion) => {
+            const mine = game.move({ from, to, promotion });
+            if (!mine) return false;
+            played++;
+            board.setPosition(game.position, { from, to });
+            const st = game.status();
+            if (st.reason === 'checkmate') {
+              board.celebrateMate(game.position.kingSquare(game.position.turn));
+              setInteraction({});
+              panel.replaceChildren(goodBubble(step.success), continueBtn());
+              return true;
+            }
+            if (st.over) {
+              mistakes++;
+              setInteraction({});
+              message(st.reason === 'stalemate' ? step.stalemate : 'La partida terminó en tablas. Vuelve a intentarlo.', 'bad', [retry()]);
+              return true;
+            }
+            if (played >= step.maxMoves) {
+              mistakes++;
+              setInteraction({});
+              message(step.wrong, 'bad', [retry()]);
+              return true;
+            }
+            message(`${step.text} Jugadas: ${played}/${step.maxMoves} · el rival piensa…`);
+            setTimeout(() => {
+              const reply = bestMove(game.position, 2);
+              if (!reply) return;
+              game.move({ from: reply.from, to: reply.to, promotion: reply.promotion });
+              board.setPosition(game.position, { from: reply.from, to: reply.to });
+              if (game.status().over) {
+                // Solo puede ocurrir si el defensor captura la dama (material insuficiente).
+                mistakes++;
+                setInteraction({});
+                message('¡El rey negro capturó tu dama! Protégela con tu rey o mantenla a distancia.', 'bad', [retry()]);
+                return;
+              }
+              message(status(), 'info', [hint()]);
+            }, 300);
             return true;
           },
         });

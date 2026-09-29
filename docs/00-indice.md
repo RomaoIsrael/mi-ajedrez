@@ -11,6 +11,7 @@
 9. [MVP, roadmap y pruebas](09-mvp-roadmap-pruebas.md).
 10. [Prototipo navegable](10-prototipo.md) — qué incluye, arquitectura, flujo, cómo ejecutarlo y limitaciones.
 11. [Tablero](11-tablero.md) — interacción, anotaciones, teclado y accesibilidad, temas, animaciones y sonidos.
+12. [Contenido](12-contenido.md) — lecciones y puzzles, cómo se verifican y cómo añadir más.
 
 ## Convenciones
 

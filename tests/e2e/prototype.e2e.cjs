@@ -59,8 +59,15 @@ function check(cond, msg) {
   await p.click('text=Intentar de nuevo');
   check(await p.locator(`${sq('f1')} img`).count() === 1, '«Intentar de nuevo» deshace la jugada');
 
-  // Puzzle
+  // Puzzle (se fija el del alfil gratis marcando los demás como resueltos)
+  await p.evaluate(async () => {
+    const { PUZZLES } = await import('/packages/content/dist/index.js');
+    const prof = JSON.parse(localStorage.getItem('kavalo.profile.v1'));
+    prof.solvedPuzzles = PUZZLES.map((z) => z.id).filter((id) => id !== 'p-free-bishop');
+    localStorage.setItem('kavalo.profile.v1', JSON.stringify(prof));
+  });
   await p.goto(BASE + '#/puzzles');
+  await p.reload();
   await p.waitForSelector('.puzzle-prompt');
   await p.click(sq('d1')); await p.click(sq('d5'));
   await p.waitForSelector('text=SIGUIENTE');

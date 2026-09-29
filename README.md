@@ -21,7 +21,8 @@ Principio rector: **no enseñar qué jugar, enseñar a pensar.** El éxito se mi
 | 4. Prototipo navegable | App web con tablero real, lecciones, partidas con coach, análisis, puzzles, progreso y ADN básico | ✅ [docs/10-prototipo.md](docs/10-prototipo.md) |
 | 5. Tablero | Flechas y círculos del usuario, navegación ◀ ▶, teclado, jugada escrita, 6 temas, daltonismo, animaciones, sonidos | ✅ [docs/11-tablero.md](docs/11-tablero.md) |
 | 6. Stockfish | Motor fuerte en Web Worker, análisis posicional, bots 7–10 | ⏭ Siguiente (requiere acceso a npm) |
-| 7–12 | Lecciones, coach, ADN, personalización, pruebas, publicación | Pendiente |
+| 7. Contenido | 21 lecciones (fundamentos, visión, táctica, aperturas, estrategia, finales) y 28 puzzles verificados, incluidos mates en 2 | ✅ [docs/12-contenido.md](docs/12-contenido.md) |
+| 8–12 | Coach, ADN, personalización, pruebas, publicación | Pendiente |
 
 ## Probar el prototipo
 
@@ -30,8 +31,8 @@ Requiere Node.js ≥ 20. No hay dependencias externas.
 ```bash
 npm install --offline   # solo enlaza los paquetes del monorepo
 npm start               # compila y abre http://localhost:5173/apps/web-prototype/
-npm test                # 69 pruebas unitarias (incluye perft del motor de reglas)
-npm run test:e2e        # 2 recorridos con Playwright: app completa y tablero (con el servidor arrancado)
+npm test                # 100 pruebas unitarias (perft del motor + verificación de cada lección y puzzle)
+npm run test:e2e        # 3 recorridos con Playwright: app, tablero y las 21 lecciones (con el servidor arrancado)
 ```
 
 ```
@@ -40,7 +41,7 @@ packages/chess-core  reglas, FEN, SAN, PGN
 packages/tactics     ChessExplanationEngine v0: hechos → explicación, pistas, ¿Por qué?
 packages/bots        rivales humanizados (niveles 1–6) con personalidad
 packages/pedagogy    repetición espaciada y modelo de dominio
-packages/content     mapa, lecciones y puzzles originales (verificados por tests)
+packages/content     mapa, 21 lecciones y 28 puzzles originales (verificados por tests)
 ```
 
 ## Entregables iniciales (sección 101 del brief)

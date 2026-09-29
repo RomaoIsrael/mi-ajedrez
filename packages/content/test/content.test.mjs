@@ -82,26 +82,50 @@ test('lección jaque mate: el quiz de ahogado es realmente ahogado', () => {
 });
 
 for (const pz of PUZZLES) {
-  test(`puzzle ${pz.id} (${pz.goal})`, () => {
+  test(`puzzle ${pz.id} (${pz.line ? `mate en ${(pz.line.length + 1) / 2}` : pz.goal})`, () => {
     const pos = Position.fromFen(pz.fen);
+    const uci = (m) => `${squareName(m.from)}${squareName(m.to)}${m.promotion ?? ''}`;
     const accepted = pz.accept.map((u) => parseMove(pos, u));
     accepted.forEach((m, i) => assert.ok(m, `jugada ilegal ${pz.accept[i]}`));
-    if (pz.goal === 'mate') {
+    const mates = (p) => p.legalMoves().filter((m) => p.play(m).isCheckmate());
+    if (pz.line) {
+      // Mate en 2: sin mate en 1, la primera jugada fuerza mate ante CUALQUIER defensa, y es única.
+      assert.equal(pz.line.length, 3);
+      assert.deepEqual(pz.accept, [pz.line[0]]);
+      assert.equal(mates(pos).length, 0, 'no debe haber mate en 1');
+      let p = pos;
+      for (const u of pz.line) { const m = parseMove(p, u); assert.ok(m, `línea ilegal en ${u}`); p = p.play(m); }
+      assert.ok(p.isCheckmate(), 'la línea termina en mate');
+      const forcesMate = (m) => {
+        const after = pos.play(m);
+        const replies = after.legalMoves();
+        return replies.length > 0 && replies.every((r) => mates(after.play(r)).length > 0);
+      };
+      assert.ok(forcesMate(accepted[0]), 'la clave fuerza mate contra cualquier defensa');
+      const others = pos.legalMoves().filter((m) => uci(m) !== pz.line[0] && forcesMate(m)).map(uci);
+      assert.deepEqual(others, [], 'solución única');
+    } else if (pz.goal === 'mate') {
       accepted.forEach((m) => assert.ok(pos.play(m).isCheckmate(), `${pz.accept} no es mate`));
-      const otherMates = pos.legalMoves().filter((m) => !accepted.includes(m) && !pz.accept.includes(`${squareName(m.from)}${squareName(m.to)}${m.promotion ?? ''}`) && pos.play(m).isCheckmate());
+      const otherMates = mates(pos).filter((m) => !pz.accept.includes(uci(m)));
       assert.equal(otherMates.length, 0, 'solución única');
     } else {
       const base = evaluate(pos, pos.turn);
-      const best = scoreMove(pos, accepted[0], 4);
+      const best = Math.min(...accepted.map((m) => scoreMove(pos, m, 4)));
       assert.ok(best - base >= 200, `gana material: ${best - base}`);
-      const alternatives = pos.legalMoves().filter((m) => !pz.accept.includes(`${squareName(m.from)}${squareName(m.to)}${m.promotion ?? ''}`));
+      const alternatives = pos.legalMoves().filter((m) => !pz.accept.includes(uci(m)));
       const second = Math.max(...alternatives.map((m) => scoreMove(pos, m, 4)));
       assert.ok(best - second >= 150, `solución única: ${best} vs ${second}`);
     }
   });
 }
 
+test('puzzles: ids únicos y conceptos del mapa', () => {
+  assert.equal(new Set(PUZZLES.map((p) => p.id)).size, PUZZLES.length);
+  for (const p of PUZZLES) assert.ok(ALL_CONCEPTS.some((c) => c.id === p.concept), `${p.id}: ${p.concept}`);
+});
+
 test('pickPuzzle prioriza conceptos débiles y dificultad adecuada', () => {
-  assert.equal(pickPuzzle({ rating: 400 }).id, 'p-free-bishop');
+  const easy = pickPuzzle({ rating: 400 });
+  assert.equal(Math.min(...PUZZLES.map((p) => Math.abs(p.rating - 450))), Math.abs(easy.rating - 450));
   assert.equal(pickPuzzle({ rating: 400, weakConcepts: ['tactics.fork'] }).concept, 'tactics.fork');
 });

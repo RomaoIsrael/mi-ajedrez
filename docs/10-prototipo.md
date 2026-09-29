@@ -81,7 +81,7 @@ npm run test:e2e        # recorridos completos con Playwright (con el servidor a
 
 - El análisis usa detectores tácticos de 1–2 jugadas. No detecta todavía errores posicionales, que llegarán con Stockfish en la Fase 6.
 - Los bots de nivel 5–6 piensan en el hilo principal (~1–2 s en medio juego). En la Fase 6 pasarán a un Web Worker.
-- Solo hay 5 lecciones y 10 puzzles de muestra. El resto del mapa aparece como "Próximamente".
+- Hay 21 lecciones y 28 puzzles (ver [12-contenido](12-contenido.md)). Los nodos de cálculo, planificación y maestría aún aparecen como "Próximamente".
 - Los textos de la interfaz están solo en español. Las explicaciones del motor ya tienen versión en inglés; el sistema i18n completo llegará con Next.js.
 - Los datos se guardan solo en el navegador. Todavía no hay cuentas ni sincronización.
 - La PGN importada no admite variantes.

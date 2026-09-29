@@ -23,8 +23,12 @@ function check(cond, msg) {
   const pieceAt = async (n) => (await p.locator(`${sq(n)} img`).count()) === 1;
 
   await p.goto(BASE);
-  const allButPromo = ['p-free-bishop', 'p-back-rank', 'p-queen-rank', 'p-king-queen', 'p-smothered', 'p-knight-fork', 'p-pawn-fork', 'p-skewer', 'p-double-attack'];
-  await p.evaluate((solved) => localStorage.setItem('kavalo.profile.v1', JSON.stringify({ onboarded: true, name: 'Ana', solvedPuzzles: solved })), allButPromo);
+  // Marca como resueltos todos los puzzles salvo el de coronación, para que sea el siguiente.
+  await p.evaluate(async () => {
+    const { PUZZLES } = await import('/packages/content/dist/index.js');
+    const solved = PUZZLES.map((z) => z.id).filter((id) => id !== 'p-promo-mate');
+    localStorage.setItem('kavalo.profile.v1', JSON.stringify({ onboarded: true, name: 'Ana', solvedPuzzles: solved }));
+  });
 
   // 1. Teclado: e2 → e4 solo con flechas y Enter
   await p.goto(BASE + '#/play');

@@ -14,7 +14,7 @@ import { append, button, h, navigate, primaryButton, screen } from '../dom.js';
 import { mistakeStats } from '../state/insights.js';
 import { addEvidence, addReview, gradeReview, profile, recordLearning, save, updateRating } from '../state/store.js';
 
-interface Item { id: string; fen: string; accept: string[]; concept: string; rating: number; prompt: string; explanation?: string; personal?: { days: number } }
+interface Item { id: string; fen: string; accept: string[]; line?: string[]; goal?: 'mate' | 'material'; concept: string; rating: number; prompt: string; explanation?: string; personal?: { days: number } }
 
 function nextItem(conceptFilter?: string, exclude: string[] = []): Item | null {
   const now = Date.now();
@@ -88,7 +88,7 @@ export function renderPuzzles(root: HTMLElement, [conceptFilter]: string[]): voi
     });
     const solutionBtn = button('Ver solución', () => {
       sawSolution = true;
-      const m = parseMove(game.position, item.accept[0]!)!;
+      const m = parseMove(game.position, step === 0 ? item.accept[0]! : item.line![step]!)!;
       board.setArrows([{ from: m.from, to: m.to, color: 'good' }]);
       panel.replaceChildren(coachBubble([h('p', {}, `${localizeSan(moveToSan(game.position, m), 'es')}. ${item.explanation ?? ''}`)]), actions());
     });
@@ -96,12 +96,35 @@ export function renderPuzzles(root: HTMLElement, [conceptFilter]: string[]): voi
     const actions = () => h('div', { class: 'game-actions' }, hintBtn, solutionBtn, draw, button('Saltar', load));
     panel.replaceChildren(actions());
 
+    const user = game.position.turn;
+    /** Índice en `item.line` de la jugada que toca al usuario (0, 2, 4…). */
+    let step = 0;
+    const lastStep = item.line ? item.line.length - 1 : 0;
     const onMove = (from: number, to: number, promotion?: PieceType) => {
         const before = game.position;
         const played = game.move({ from, to, promotion });
         if (!played) return false;
         board.setPosition(game.position, { from, to });
-        const ok = item.accept.includes(played.uci);
+        const expected = step === 0 ? item.accept : [item.line![step]!];
+        // En la última jugada de un mate, cualquier mate vale.
+        const ok = expected.includes(played.uci) || (step === lastStep && item.goal === 'mate' && game.status().reason === 'checkmate');
+        if (ok && item.line && step < lastStep) {
+          // Puzzle de varias jugadas: la app responde con la mejor defensa del rival.
+          cue('move');
+          board.setHighlights([to], 'good');
+          board.setInteraction({});
+          const reply = item.line[step + 1]!;
+          setTimeout(() => {
+            const r = game.move(reply);
+            if (!r) return;
+            board.setPosition(game.position, { from: r.move.from, to: r.move.to });
+            step += 2;
+            ladder = null;
+            panel.replaceChildren(coachBubble([h('p', { class: 'msg msg-good' }, `¡Bien! El rival responde ${localizeSan(r.san, 'es')}. ¿Cómo sigues?`)]), actions());
+            board.setInteraction({ movable: () => (game.position.turn === user ? user : null), onMove });
+          }, 600);
+          return true;
+        }
         if (ok) {
           cue('success');
           board.flash(to, 'good');
@@ -119,7 +142,7 @@ export function renderPuzzles(root: HTMLElement, [conceptFilter]: string[]): voi
         return true;
     };
     submitMove = onMove;
-    board.setInteraction({ movable: () => game.position.turn, onMove });
+    board.setInteraction({ movable: () => (game.position.turn === user ? user : null), onMove });
 
     function finish(correct: boolean) {
       const ms = performance.now() - start;
