@@ -71,6 +71,13 @@ function check(cond, msg) {
   check(/Precisión media/.test(text) && /Tiempo por jugada/.test(text), 'dashboard con precisión, errores, táctica, finales y tiempo (brief §48)');
   check(/Evaluación inicial/.test(text), 'el resultado del test inicial aparece en el progreso');
 
+  // Coach (brief §100) y Finales (§78)
+  await p.goto(BASE + '#/coach');
+  const qs = await p.locator('.qa h2').allInnerTexts();
+  check(qs.length === 9 && qs[0] === '¿Qué sabes ya?' && qs[8] === '¿Qué ayuda ya podemos retirar?', 'el coach responde a las 9 preguntas del brief §100');
+  await p.goto(BASE + '#/endgames');
+  check(/Rey y dama contra rey/.test(await p.locator('main').innerText()), 'pantalla de finales con lecciones y posiciones');
+
   check(errors.length === 0, `sin errores de JavaScript${errors.length ? `: ${errors.join('; ')}` : ''}`);
   await browser.close();
 })().catch((e) => {

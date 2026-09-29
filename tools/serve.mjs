@@ -3,7 +3,8 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 
-const ROOT = resolve(new URL('..', import.meta.url).pathname);
+// Raíz servida: el repositorio, o la carpeta indicada en SERVE_ROOT (p. ej. el sitio publicado).
+const ROOT = resolve(process.env.SERVE_ROOT ?? new URL('..', import.meta.url).pathname);
 const PORT = Number(process.argv[2] ?? process.env.PORT ?? 5173);
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',

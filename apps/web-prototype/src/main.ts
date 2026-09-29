@@ -11,6 +11,8 @@ import { renderImport } from './screens/import.js';
 import { t } from './i18n.js';
 import { syncNow } from './state/sync.js';
 import { renderPrivacy } from './screens/privacy.js';
+import { renderCoach } from './screens/coach.js';
+import { renderEndgames } from './screens/endgames.js';
 import { showReward } from './components/toast.js';
 import { renderDna } from './screens/dna.js';
 import { renderHome, renderPlan } from './screens/home.js';
@@ -46,6 +48,8 @@ const ROUTES: Record<string, { render: Render; tab?: string; title: string }> = 
   library: { render: renderLibrary, tab: 'learn', title: 'Biblioteca' },
   import: { render: renderImport, tab: 'progress', title: 'Importar' },
   privacy: { render: renderPrivacy, title: 'Privacidad' },
+  coach: { render: renderCoach, tab: 'home', title: 'Tu coach' },
+  endgames: { render: renderEndgames, tab: 'learn', title: 'Finales' },
 };
 
 const TABS = [

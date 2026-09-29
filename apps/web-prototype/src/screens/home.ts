@@ -59,6 +59,7 @@ export function renderHome(root: HTMLElement): void {
 
     h('div', { class: 'home-links' },
       h('a', { class: 'card card-link', href: '#/report' }, h('p', { class: 'eyebrow' }, t('home.week')), h('p', {}, t('home.report'))),
+      h('a', { class: 'card card-link', href: '#/coach' }, h('p', { class: 'eyebrow' }, t('home.coach')), h('p', {}, t('home.coachWhat'))),
       h('a', { class: 'card card-link', href: '#/achievements' }, h('p', { class: 'eyebrow' }, t('home.achievements')), h('p', {}, t('home.ofTotal', { a: achievementsGot, b: ACHIEVEMENTS.length })))),
   ));
 }

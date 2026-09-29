@@ -9,7 +9,7 @@ const { chromium } = require('playwright');
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:5173/apps/web-prototype/';
 const ROUTES = ['', 'learn', 'play', 'puzzles', 'progress', 'dna', 'settings', 'report', 'achievements', 'train', 'train/vision',
-  'openings', 'openings/italian', 'library', 'library/opera-1858', 'import', 'plan', 'lesson/board'];
+  'openings', 'openings/italian', 'library', 'library/opera-1858', 'import', 'plan', 'lesson/board', 'coach', 'endgames', 'privacy'];
 
 function check(cond, msg) {
   if (!cond) throw new Error(msg);

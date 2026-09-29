@@ -16,6 +16,9 @@
 14. [Stockfish](14-stockfish.md) — motor, robots, análisis con motor, libro de aperturas y verificación de contenido.
 15. [ADN](15-adn.md) — rasgos medidos, dimensiones con intervalo, evolución, consejos y aperturas.
 16. [Personalización y módulos](16-personalizacion.md) — modos y relojes, entrenamientos, aperturas, biblioteca, importar/exportar, piezas, modo niños, idiomas, test inicial y dashboard.
+17. [Pruebas y calidad](17-calidad.md) — pirámide de pruebas, control de calidad del brief, accesibilidad, rendimiento y CI.
+18. [Publicación](18-publicacion.md) — PWA sin conexión, despliegue, cuentas y sincronización, licencias y privacidad.
+19. [Cobertura del brief](19-cobertura-brief.md) — estado real de las 105 secciones.
 
 ## Convenciones
 

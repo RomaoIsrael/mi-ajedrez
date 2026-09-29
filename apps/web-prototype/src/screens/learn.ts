@@ -14,6 +14,7 @@ export function renderLearn(root: HTMLElement): void {
     h('nav', { class: 'learn-links', 'aria-label': 'Otros módulos' },
       h('a', { class: 'chip', href: '#/train' }, '🎯 Entrenamiento: visión, cálculo y coordenadas'),
       h('a', { class: 'chip', href: '#/openings' }, '📖 Aperturas'),
+      h('a', { class: 'chip', href: '#/endgames' }, '♔ Finales'),
       h('a', { class: 'chip', href: '#/library' }, '🏛 Partidas históricas')),
     h('ol', { class: 'map' }, ...SECTIONS.map((s) =>
       h('li', { class: 'map-section' },
