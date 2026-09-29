@@ -1,0 +1,17 @@
+{
+  "name": "Kavalo — entrenador personal de ajedrez",
+  "short_name": "Kavalo",
+  "description": "No te dice la mejor jugada. Te enseña a encontrarla.",
+  "lang": "es",
+  "start_url": "./#/",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F8F5EE",
+  "theme_color": "#0F1B2D",
+  "categories": ["education", "games"],
+  "icons": [
+    { "src": "../../assets/brand/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "../../assets/brand/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

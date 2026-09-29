@@ -18,8 +18,47 @@ Principio rector: **no enseñar qué jugar, enseñar a pensar.** El éxito se mi
 | 1. Producto | Concepto, propuesta de valor, nombres, pedagogía, ADN, coach | ✅ Documentado |
 | 2. UX/UI | Flujos, mapa de pantallas, wireframes, design system, identidad | ✅ Documentado |
 | 3. Arquitectura | Funcional, técnica, Stockfish, base de datos, modelos | ✅ Documentado |
-| 4. Prototipo navegable | — | ⏭ Siguiente |
-| 5–12 | Tablero, Stockfish, lecciones, coach, ADN, personalización, pruebas, publicación | Pendiente |
+| 4. Prototipo navegable | App web con tablero real, lecciones, partidas con coach, análisis, puzzles, progreso y ADN básico | ✅ [docs/10-prototipo.md](docs/10-prototipo.md) |
+| 5. Tablero | Flechas y círculos del usuario, navegación ◀ ▶, teclado, jugada escrita, 6 temas, daltonismo, animaciones, sonidos | ✅ [docs/11-tablero.md](docs/11-tablero.md) |
+| 6. Stockfish | Stockfish 19 en Web Worker, robots 1–10, análisis posicional, «¿Qué pasaba si…?», libro de aperturas, puzzles verificados con dos motores | ✅ [docs/14-stockfish.md](docs/14-stockfish.md) |
+| 7. Contenido | 21 lecciones (fundamentos, visión, táctica, aperturas, estrategia, finales) y 28 puzzles verificados, incluidos mates en 2 | ✅ [docs/12-contenido.md](docs/12-contenido.md) |
+| 8. Coach | Recomendador explicable, repaso espaciado de lecciones, misiones, logros, reporte semanal y retirada progresiva de ayudas | ✅ [docs/13-coach.md](docs/13-coach.md) |
+| 9. ADN | 8 dimensiones medidas con Stockfish, intervalos de confianza, evolución antes → ahora, estilo, plan según el ADN, aperturas compatibles y reporte mensual | ✅ [docs/15-adn.md](docs/15-adn.md) |
+| 10. Personalización y módulos | 10 modos de partida y todos los relojes, entrenamiento de visión/cálculo/coordenadas, aperturas, partidas históricas, importar/exportar, 12 sets de piezas, modo niños, inglés, test inicial, dashboard, radar y ratings por área | ✅ [docs/16-personalizacion.md](docs/16-personalizacion.md) |
+| 11. Pruebas y calidad | Plan de QA, comprobaciones de calidad, auditoría de accesibilidad automática y CI en GitHub Actions | ✅ [docs/17-calidad.md](docs/17-calidad.md) |
+| 12. Publicación | PWA sin conexión, servidor de sincronización opcional con cuentas de invitado/email, privacidad, licencias y despliegue en GitHub Pages | ✅ [docs/18-publicacion.md](docs/18-publicacion.md) |
+
+Cobertura sección por sección del brief (105 secciones): [docs/19-cobertura-brief.md](docs/19-cobertura-brief.md).
+
+## Probar el prototipo
+
+Requiere Node.js ≥ 22.5 (el servidor usa `node:sqlite`). No hay dependencias externas.
+
+```bash
+npm install --offline   # solo enlaza los paquetes del monorepo
+npm start               # compila y abre http://localhost:5173/apps/web-prototype/
+npm test                # pruebas unitarias (reglas, PGN, Stockfish, contenido, coach, ADN, entrenamientos, i18n)
+npm run check           # calidad: tamaño, integridad de Stockfish, coherencia del contenido
+npm run test:e2e        # 12 recorridos con Playwright (con el servidor arrancado): app, tablero, lecciones, coach, Stockfish,
+                        # ADN, modos, entrenamientos, aperturas/biblioteca, importar/exportar, personalización y PWA/sincronización
+npm run test:a11y       # auditoría de accesibilidad (21 pantallas, tema claro y oscuro)
+npm run sync            # servidor de sincronización opcional (puerto 8787)
+```
+
+```
+apps/web-prototype   interfaz (TypeScript + DOM, sin framework)
+packages/chess-core  reglas, FEN, SAN, PGN
+packages/engine      cliente UCI para Stockfish y clasificación de jugadas
+vendor/stockfish     Stockfish 19 Lite (WASM, GPLv3)
+packages/tactics     ChessExplanationEngine v0: hechos → explicación, pistas, ¿Por qué?
+packages/bots        rivales humanizados (niveles 1–6) con personalidad
+packages/pedagogy    repetición espaciada y modelo de dominio
+packages/content     mapa, 21 lecciones, 28 puzzles, 13 aperturas, 11 posiciones, 5 partidas históricas y test inicial
+packages/training    ejercicios de coordenadas, visión y cálculo
+packages/dna         ADN: rasgos por partida, dimensiones con intervalo, consejos y aperturas
+packages/coach       recomendador, misiones, logros, reporte semanal y retirada de ayudas
+server               sincronización opcional (node:http + node:sqlite, sin dependencias)
+```
 
 ## Entregables iniciales (sección 101 del brief)
 

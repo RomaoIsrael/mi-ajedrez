@@ -1,0 +1,35 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "packages/chess-core"
+    },
+    {
+      "path": "packages/engine"
+    },
+    {
+      "path": "packages/tactics"
+    },
+    {
+      "path": "packages/bots"
+    },
+    {
+      "path": "packages/pedagogy"
+    },
+    {
+      "path": "packages/content"
+    },
+    {
+      "path": "packages/dna"
+    },
+    {
+      "path": "packages/coach"
+    },
+    {
+      "path": "packages/training"
+    },
+    {
+      "path": "apps/web-prototype"
+    }
+  ]
+}

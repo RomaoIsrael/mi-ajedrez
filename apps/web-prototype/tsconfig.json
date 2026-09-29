@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "dist", "declarationMap": false },
+  "include": ["src"],
+  "references": [
+    { "path": "../../packages/chess-core" },
+    { "path": "../../packages/tactics" },
+    { "path": "../../packages/bots" },
+    { "path": "../../packages/pedagogy" },
+    { "path": "../../packages/content" },
+    { "path": "../../packages/coach" },
+    { "path": "../../packages/engine" },
+    { "path": "../../packages/dna" },
+    { "path": "../../packages/training" }
+  ]
+}

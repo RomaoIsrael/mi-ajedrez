@@ -1,0 +1,314 @@
+/** Lección EMPCRAE paso a paso: explicar, mostrar, practicar, corregir y comprobar. */
+import { Game, parseSquare, Position, squareName, type Square } from '@kavalo/chess-core';
+import { lessonById, PUZZLES, type LessonStep } from '@kavalo/content';
+import { bestMove } from '@kavalo/bots';
+import { hintLadder } from '@kavalo/tactics';
+import { Board } from '../components/board.js';
+import { cue } from '../feedback.js';
+import { coachBubble, COACHES } from '../components/coach.js';
+import { button, h, navigate, primaryButton, screen } from '../dom.js';
+import { lessonCardId } from '@kavalo/coach';
+import { addEvidence, addReview, gradeReview, logActivity, profile, recordLearning, save } from '../state/store.js';
+
+const PRACTICE: LessonStep['kind'][] = ['select', 'move', 'reach', 'quiz'];
+
+/**
+ * Pasos de un repaso espaciado: solo práctica (sin explicaciones), como máximo 3. La ventana
+ * rota en cada repaso para no memorizar siempre la misma posición.
+ */
+function reviewSteps(steps: LessonStep[], offset: number): LessonStep[] {
+  const practice = steps.filter((s) => PRACTICE.includes(s.kind));
+  if (practice.length <= 3) return practice;
+  return Array.from({ length: 3 }, (_, i) => practice[(offset + i) % practice.length]!);
+}
+
+export function renderLesson(root: HTMLElement, [id, mode]: string[]): void {
+  const lesson = lessonById(id ?? '');
+  if (!lesson) {
+    root.append(screen('Lección no encontrada', primaryButton('Volver al mapa', () => navigate('#/learn'))));
+    return;
+  }
+  const reviewMode = mode === 'review';
+  const card = profile.reviews.find((r) => r.itemId === lessonCardId(lesson.id));
+  const steps = reviewMode ? reviewSteps(lesson.steps, (card?.step ?? 0) + (card?.lapses ?? 0)) : lesson.steps;
+  const startedAt = Date.now();
+  let index = 0;
+  let mistakes = 0;
+  const title = h('p', { class: 'eyebrow' }, reviewMode ? `Repaso · ${lesson.title}` : lesson.title);
+  const bar = h('div', { class: 'progress-bar' });
+  const boardHolder = h('div', { class: 'board-holder' });
+  const panel = h('div', { class: 'lesson-panel' });
+  const board = new Board({ coordinates: profile.settings.coordinates, reduceMotion: profile.settings.reduceMotion });
+  boardHolder.append(board.el);
+  root.append(screen(null, h('div', { class: 'lesson-head' }, h('a', { href: '#/learn', class: 'link', 'aria-label': 'Salir' }, '✕'), title), h('div', { class: 'progress' }, bar), boardHolder, panel));
+
+  const setInteraction = (o: Parameters<Board['setInteraction']>[0]) => board.setInteraction(o);
+
+  const goodBubble = (text: string) => {
+    cue('success');
+    return coachBubble([h('p', { class: 'msg msg-good' }, text)]);
+  };
+
+  const message = (text: string, kind: 'info' | 'good' | 'bad' = 'info', actions: HTMLElement[] = []) => {
+    if (kind === 'bad') cue('error');
+    panel.replaceChildren(coachBubble([h('p', { class: `msg msg-${kind}` }, text)], actions));
+  };
+
+  const next = () => {
+    index++;
+    if (index >= steps.length) return finish();
+    show();
+  };
+
+  const continueBtn = (label = 'Continuar') => h('div', { class: 'cta' }, primaryButton(label, next));
+
+  function show() {
+    const step = steps[index]!;
+    bar.style.width = `${(index / steps.length) * 100}%`;
+    board.clearMarks();
+    setInteraction({});
+    const pos = step.fen ? Position.fromFen(step.fen) : null;
+    boardHolder.hidden = !pos;
+    if (pos) board.setPosition(pos, null, false);
+    render(step, pos);
+  }
+
+  function render(step: LessonStep, pos: Position | null) {
+    switch (step.kind) {
+      case 'explain':
+        board.setHighlights((step.highlights ?? []).map(parseSquare), 'info');
+        board.setArrows((step.arrows ?? []).map(([a, b]) => ({ from: parseSquare(a), to: parseSquare(b), color: 'info' })));
+        panel.replaceChildren(coachBubble([h('p', {}, step.text)]), continueBtn());
+        break;
+
+      case 'select': {
+        const answer = new Set(step.answer.map(parseSquare));
+        const found = new Set<Square>();
+        message(step.text);
+        setInteraction({
+          onSquare: (sq) => {
+            if (answer.has(sq)) {
+              found.add(sq);
+              board.addHighlight(sq, 'good');
+              if (found.size === answer.size) {
+                panel.replaceChildren(goodBubble(step.success), continueBtn());
+                setInteraction({});
+              } else if (answer.size > 1) {
+                message(`${step.text} (${found.size}/${answer.size})`, 'good');
+              }
+            } else {
+              mistakes++;
+              board.addHighlight(sq, 'bad');
+              setTimeout(() => { board.setHighlights([...found], 'good'); }, 600);
+              // Si la respuesta son piezas y se tocó una casilla vacía, se dice eso en lugar del error genérico.
+              const askingForPieces = pos !== null && step.answer.every((a) => pos.get(parseSquare(a)) !== null);
+              const empty = pos !== null && pos.get(sq) === null;
+              message(askingForPieces && empty ? `En ${squareName(sq)} no hay ninguna pieza. Toca una pieza.` : `${step.wrong} (tocaste ${squareName(sq)})`, 'bad');
+            }
+          },
+        });
+        break;
+      }
+
+      case 'move': {
+        let game = new Game(step.fen);
+        message(step.text);
+        setInteraction({
+          movable: () => game.position.turn,
+          onMove: (from, to, promotion) => {
+            const played = game.move({ from, to, promotion });
+            if (!played) return false;
+            board.setPosition(game.position, { from, to });
+            if (step.accept.includes(played.uci)) {
+              board.setHighlights([to], 'good');
+              setInteraction({});
+              panel.replaceChildren(goodBubble(step.success), continueBtn());
+            } else {
+              mistakes++;
+              board.setHighlights([to], 'bad');
+              message(step.wrong, 'bad');
+              setTimeout(() => { game = new Game(step.fen); board.setPosition(game.position, null, false); board.clearMarks(); }, 900);
+            }
+            return true;
+          },
+        });
+        break;
+      }
+
+      case 'reach': {
+        const target = parseSquare(step.target);
+        let current = pos!;
+        let pieceSq = parseSquare(step.from);
+        let used = 0;
+        const unit = current.get(pieceSq)?.type === 'n' ? 'Saltos' : 'Movimientos';
+        board.setHighlights([target], 'hint');
+        message(`${step.text} ${unit}: 0/${step.maxMoves}`);
+        setInteraction({
+          movable: () => 'w',
+          onMove: (from, to) => {
+            const move = current.legalMoves(from).find((m) => m.to === to);
+            if (!move || from !== pieceSq) {
+              message(`En este ejercicio solo se mueve la pieza de ${squareName(pieceSq)}.`, 'bad');
+              return false;
+            }
+            let next: Position;
+            try {
+              next = current.play(move).withTurn('w'); // modo "pieza libre": siempre mueves tú
+            } catch {
+              // La jugada daría jaque al rey negro: en este ejercicio de recorrido no se usa.
+              message('Esa casilla da jaque al rey rival. En este ejercicio busca otra ruta.', 'bad');
+              return false;
+            }
+            used++;
+            pieceSq = to;
+            current = next;
+            board.setPosition(current, { from, to });
+            board.setHighlights([target], 'hint');
+            if (to === target) {
+              board.setHighlights([target], 'good');
+              setInteraction({});
+              panel.replaceChildren(goodBubble(step.success), continueBtn());
+            } else if (used >= step.maxMoves) {
+              mistakes++;
+              message(step.wrong, 'bad', [button('Reintentar', () => show())]);
+              setInteraction({});
+            } else {
+              message(`${step.text} ${unit}: ${used}/${step.maxMoves}`);
+            }
+            return true;
+          },
+        });
+        break;
+      }
+
+      case 'play': {
+        // Práctica real contra un defensor que busca la mejor resistencia.
+        const game = new Game(step.fen);
+        const user = game.position.turn;
+        let played = 0;
+        const status = () => `${step.text} Jugadas: ${played}/${step.maxMoves}`;
+        const retry = () => button('Reintentar', () => show());
+        const hint = () => button('Pista', () => {
+          const ladder = hintLadder(game.position);
+          const text = ladder ? ladder.steps[ladder.concept === 'tactics.mate-in-1' ? 0 : 1]!.text
+            : 'Usa la dama para dejar al rey rival en una «caja» cada vez más pequeña, a un salto de caballo de distancia, y acerca tu rey. Antes de mover, comprueba que el rival conserva al menos una casilla.';
+          message(text, 'info', [hint()]);
+        });
+        message(status(), 'info', [hint()]);
+        setInteraction({
+          movable: () => (game.position.turn === user && !game.status().over ? user : null),
+          onMove: (from, to, promotion) => {
+            const mine = game.move({ from, to, promotion });
+            if (!mine) return false;
+            played++;
+            board.setPosition(game.position, { from, to });
+            const st = game.status();
+            if (st.reason === 'checkmate') {
+              board.celebrateMate(game.position.kingSquare(game.position.turn));
+              setInteraction({});
+              panel.replaceChildren(goodBubble(step.success), continueBtn());
+              return true;
+            }
+            if (st.over) {
+              mistakes++;
+              setInteraction({});
+              message(st.reason === 'stalemate' ? step.stalemate : 'La partida terminó en tablas. Vuelve a intentarlo.', 'bad', [retry()]);
+              return true;
+            }
+            if (played >= step.maxMoves) {
+              mistakes++;
+              setInteraction({});
+              message(step.wrong, 'bad', [retry()]);
+              return true;
+            }
+            message(`${step.text} Jugadas: ${played}/${step.maxMoves} · el rival piensa…`);
+            setTimeout(() => {
+              const reply = bestMove(game.position, 2);
+              if (!reply) return;
+              game.move({ from: reply.from, to: reply.to, promotion: reply.promotion });
+              board.setPosition(game.position, { from: reply.from, to: reply.to });
+              if (game.status().over) {
+                // Solo puede ocurrir si el defensor captura la dama (material insuficiente).
+                mistakes++;
+                setInteraction({});
+                message('¡El rey negro capturó tu dama! Protégela con tu rey o mantenla a distancia.', 'bad', [retry()]);
+                return;
+              }
+              message(status(), 'info', [hint()]);
+            }, 300);
+            return true;
+          },
+        });
+        break;
+      }
+
+      case 'quiz': {
+        board.setHighlights((step.highlights ?? []).map(parseSquare), 'info');
+        const options = step.options.map((o, i) =>
+          h('button', { class: 'choice', onclick: (() => answer(i)) as EventListener }, o));
+        panel.replaceChildren(coachBubble([h('p', {}, step.text)]), h('div', { class: 'choices' }, ...options));
+        const answer = (i: number) => {
+          const ok = i === step.answer;
+          if (!ok) mistakes++;
+          cue(ok ? 'success' : 'error');
+          options.forEach((b, j) => { b.disabled = true; b.classList.toggle('choice-good', j === step.answer); b.classList.toggle('choice-bad', j === i && !ok); });
+          panel.append(coachBubble([h('p', { class: `msg msg-${ok ? 'good' : 'bad'}` }, `${ok ? '¡Correcto! ' : 'No exactamente. '}${step.explanation}`)]), continueBtn());
+        };
+        break;
+      }
+    }
+  }
+
+  function finishReview() {
+    bar.style.width = '100%';
+    boardHolder.hidden = true;
+    // Nota del repaso → repetición espaciada (1, 3, 7, 14, 30 días) y evidencia de dominio.
+    const grade = mistakes === 0 ? 'good' : mistakes === 1 ? 'hard' : 'fail';
+    gradeReview(lessonCardId(lesson!.id), grade);
+    addEvidence(lesson!.conceptId, mistakes === 0, 'review', 0);
+    logActivity({ kind: 'review', ms: Date.now() - startedAt, ok: mistakes === 0, concept: lesson!.conceptId, ref: lesson!.id });
+    recordLearning(mistakes === 0 ? 10 : 4, `review:${lesson!.id}`);
+    const next = profile.reviews.find((r) => r.itemId === lessonCardId(lesson!.id));
+    const days = next?.intervalDays ?? 1;
+    panel.replaceChildren(
+      coachBubble([
+        h('h2', {}, mistakes === 0 ? '¡Repaso superado!' : 'Repaso completado'),
+        h('p', {}, mistakes === 0
+          ? `${COACHES[profile.coachStyle].onGood} Lo recuerdas bien: el próximo repaso será dentro de ${days} ${days === 1 ? 'día' : 'días'}.`
+          : `Cometiste ${mistakes} ${mistakes === 1 ? 'error' : 'errores'}. Lo repasaremos de nuevo ${days === 1 ? 'mañana' : `dentro de ${days} días`}: repetir en el momento justo es lo que fija lo aprendido.`),
+      ]),
+      h('div', { class: 'cta' },
+        primaryButton('CONTINUAR ENTRENAMIENTO', () => navigate('#/')),
+        mistakes > 0 ? button('Repasar la lección completa', () => navigate(`#/lesson/${lesson!.id}`)) : null),
+    );
+  }
+
+  function finish() {
+    if (reviewMode) return finishReview();
+    bar.style.width = '100%';
+    const first = !profile.completedLessons.includes(lesson!.id);
+    if (first) profile.completedLessons.push(lesson!.id);
+    addEvidence(lesson!.conceptId, mistakes <= 1, 'guided', 0);
+    // Primer repaso espaciado al día siguiente.
+    addReview(lesson!.conceptId, lessonCardId(lesson!.id));
+    logActivity({ kind: 'lesson', ms: Date.now() - startedAt, ok: mistakes <= 1, concept: lesson!.conceptId, ref: lesson!.id, first });
+    recordLearning(first ? 20 : 5, `lesson:${lesson!.id}`);
+    save();
+    boardHolder.hidden = true;
+    const puzzles = PUZZLES.filter((p) => p.concept === lesson!.conceptId);
+    panel.replaceChildren(
+      coachBubble([
+        h('h2', {}, '¡Lección completada!'),
+        h('p', {}, mistakes === 0 ? `${COACHES[profile.coachStyle].onGood} Sin errores.` : `Cometiste ${mistakes} ${mistakes === 1 ? 'error' : 'errores'}: es parte de aprender.`),
+        h('p', { class: 'muted small' }, 'Un concepto no se considera aprendido por resolverlo una vez: mañana te propondré un repaso corto, y volverá en puzzles y partidas.'),
+      ]),
+      h('div', { class: 'cta' },
+        puzzles.length
+          ? primaryButton('PRACTICAR CON PUZZLES', () => navigate(`#/puzzles/${lesson!.conceptId}`))
+          : primaryButton('VOLVER AL MAPA', () => navigate('#/learn')),
+        puzzles.length ? button('Volver al mapa', () => navigate('#/learn')) : null),
+    );
+  }
+
+  show();
+}

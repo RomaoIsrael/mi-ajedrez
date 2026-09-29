@@ -1,0 +1,17 @@
+{
+  "name": "@kavalo/web-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@kavalo/chess-core": "*",
+    "@kavalo/tactics": "*",
+    "@kavalo/bots": "*",
+    "@kavalo/pedagogy": "*",
+    "@kavalo/content": "*",
+    "@kavalo/coach": "*",
+    "@kavalo/engine": "*",
+    "@kavalo/dna": "*",
+    "@kavalo/training": "*"
+  }
+}

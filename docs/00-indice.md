@@ -9,6 +9,16 @@
 7. [Datos](07-datos.md) — esquema PostgreSQL, `UserChessProfile`, eventos de aprendizaje, sincronización.
 8. [Gamificación](08-gamificacion.md) — XP ligada a aprendizaje real, logros, misiones, rachas sanas.
 9. [MVP, roadmap y pruebas](09-mvp-roadmap-pruebas.md).
+10. [Prototipo navegable](10-prototipo.md) — qué incluye, arquitectura, flujo, cómo ejecutarlo y limitaciones.
+11. [Tablero](11-tablero.md) — interacción, anotaciones, teclado y accesibilidad, temas, animaciones y sonidos.
+12. [Contenido](12-contenido.md) — lecciones y puzzles, cómo se verifican y cómo añadir más.
+13. [Coach](13-coach.md) — recomendador, repaso espaciado, misiones, logros, reporte semanal y retirada de ayudas.
+14. [Stockfish](14-stockfish.md) — motor, robots, análisis con motor, libro de aperturas y verificación de contenido.
+15. [ADN](15-adn.md) — rasgos medidos, dimensiones con intervalo, evolución, consejos y aperturas.
+16. [Personalización y módulos](16-personalizacion.md) — modos y relojes, entrenamientos, aperturas, biblioteca, importar/exportar, piezas, modo niños, idiomas, test inicial y dashboard.
+17. [Pruebas y calidad](17-calidad.md) — pirámide de pruebas, control de calidad del brief, accesibilidad, rendimiento y CI.
+18. [Publicación](18-publicacion.md) — PWA sin conexión, despliegue, cuentas y sincronización, licencias y privacidad.
+19. [Cobertura del brief](19-cobertura-brief.md) — estado real de las 105 secciones.
 
 ## Convenciones
 
