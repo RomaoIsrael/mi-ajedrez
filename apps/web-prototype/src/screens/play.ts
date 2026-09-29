@@ -33,6 +33,8 @@ interface Setup {
   /** Posición, apertura o tema elegidos en los modos que empiezan desde otra posición. */
   positionId: string; openingId: string; theme: string;
   custom: { base: number; inc: number };
+  /** Posición importada (FEN) desde la que empezar; se usa una vez. */
+  customFen: string | null;
 }
 
 export const MODES: Record<GameMode, { label: string; desc: string }> = {
@@ -54,7 +56,7 @@ const RATED: GameMode[] = ['ai', 'coach', 'educational', 'nohints'];
 let levelChosen = false;
 const setup: Setup = {
   mode: 'ai', personality: 'nova', level: 1, color: 'w', clock: 'none', coach: true, checklist: true,
-  positionId: START_POSITIONS[0]!.id, openingId: OPENINGS[0]!.id, theme: Object.keys(THEMES)[0]!, custom: { base: 10, inc: 5 },
+  positionId: START_POSITIONS[0]!.id, openingId: OPENINGS[0]!.id, theme: Object.keys(THEMES)[0]!, custom: { base: 10, inc: 5 }, customFen: null,
 };
 
 /** Controles de tiempo (brief §61), en segundos. */
@@ -66,7 +68,7 @@ export const CLOCKS: Record<string, { label: string; base: number; inc: number }
 };
 
 /** Prepara la configuración desde otra pantalla (p. ej. «Jugar desde esta apertura»). */
-export function presetGame(p: Partial<Pick<Setup, 'mode' | 'openingId' | 'positionId' | 'theme'>>): void {
+export function presetGame(p: Partial<Pick<Setup, 'mode' | 'openingId' | 'positionId' | 'theme' | 'customFen'>>): void {
   Object.assign(setup, p);
 }
 
@@ -126,7 +128,8 @@ export function renderPlaySetup(root: HTMLElement): void {
         b.addEventListener('click', () => { setup.mode = m; rerender(); });
         return b;
       }))),
-    h('p', { class: 'muted small mode-desc' }, MODES[mode].desc, RATED.includes(mode) ? '' : ' No cuenta para el rating.'),
+    h('p', { class: 'muted small mode-desc' }, MODES[mode].desc, RATED.includes(mode) && !setup.customFen ? '' : ' No cuenta para el rating.'),
+    setup.customFen ? h('p', { class: 'badge' }, '📥 Empezarás desde la posición importada. ', h('button', { class: 'link', onclick: (() => { setup.customFen = null; rerender(); }) as EventListener }, 'Quitar')) : null,
     mode === 'educational' ? h('p', { class: 'badge' }, `🎯 Objetivo: termina la partida sin «${educationalGoal().label}».`) : null,
     mode === 'thematic' ? select('Tema', setup.theme, Object.entries(THEMES), (v) => { setup.theme = v; }) : null,
     fromPosition ? select('Posición', setup.positionId, positions.map((p) => [p.id, `${p.title}${levelOrder[p.minLevel] > levelOrder[level] ? ' (reto)' : ''}`]), (v) => { setup.positionId = v; }) : null,
@@ -142,7 +145,7 @@ export function renderPlaySetup(root: HTMLElement): void {
     })) : null,
     vsBot ? h('p', { class: 'muted small engine-status' }, engineStatus() === 'ready' ? '♞ Stockfish listo: niveles 1–10 disponibles.' : engineStatus() === 'unavailable' ? 'Stockfish no está disponible en este navegador: niveles 1–6 con el motor propio.' : 'Cargando Stockfish en segundo plano…') : null,
     vsBot ? h('p', { class: 'muted small' }, `${BOT_LEVELS[setup.level - 1]!.name.es} · ~${BOT_LEVELS[setup.level - 1]!.elo} Elo${setup.level === recommendedLevel ? ' · recomendado para ti' : ''}. Los niveles bajos cometen errores humanos, no juegan al azar.`) : null,
-    vsBot && !fromPosition && mode !== 'opening' ? group('Tu color', [seg('color', 'w', 'Blancas'), seg('color', 'b', 'Negras'), seg('color', 'random', 'Al azar')]) : null,
+    vsBot && !fromPosition && mode !== 'opening' && !setup.customFen ? group('Tu color', [seg('color', 'w', 'Blancas'), seg('color', 'b', 'Negras'), seg('color', 'random', 'Al azar')]) : null,
     group('Reloj', Object.entries(CLOCKS).map(([k, v]) => seg('clock', k, v ? v.label : 'Sin reloj'))),
     setup.clock === 'custom' ? h('div', { class: 'custom-clock' },
       numberField('Minutos', setup.custom.base, 1, 180, (v) => { setup.custom.base = v; }),
@@ -187,9 +190,10 @@ function startGame(): void {
   const m = setup.mode;
   const pos = m === 'thematic' || m === 'middlegame' || m === 'endgame' ? START_POSITIONS.find((p) => p.id === setup.positionId) : undefined;
   const opening = m === 'opening' ? OPENINGS.find((o) => o.id === setup.openingId) : undefined;
-  const game = new Game(pos?.fen);
-  if (opening) for (const san of opening.line) game.move(san);
-  const user: Color = pos ? pos.side : opening ? opening.color : setup.color === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : setup.color;
+  const custom = setup.customFen;
+  const game = new Game(custom ?? pos?.fen);
+  if (opening && !custom) for (const san of opening.line) game.move(san);
+  const user: Color = custom ? game.position.turn : pos ? pos.side : opening ? opening.color : setup.color === 'random' ? (Math.random() < 0.5 ? 'w' : 'b') : setup.color;
   const c = clockFor(setup);
   const coach = m === 'coach' || m === 'educational' || m === 'training' || (m === 'ai' && setup.coach)
     || ((m === 'thematic' || m === 'middlegame' || m === 'endgame' || m === 'opening') && explanationLevel() !== 'advanced');
@@ -200,8 +204,9 @@ function startGame(): void {
     id: uid(), game, user, setup: { ...setup, custom: { ...setup.custom }, checklist: setup.checklist && m !== 'nohints' && m !== 'free' },
     clock: c ? { w: c.base * 1000, b: c.base * 1000, inc: c.inc * 1000, base: c.base * 1000 } : null,
     analyses: new Map(), hintsUsed: 0, startedAt: Date.now(), moveMs: new Map(), clockLeft: new Map(), turnStart: performance.now(),
-    coach, hints: coach, rated: RATED.includes(m), goal,
+    coach, hints: coach, rated: RATED.includes(m) && !custom, goal: custom ? null : goal,
   };
+  setup.customFen = null;
 }
 
 export function renderGame(root: HTMLElement): () => void {

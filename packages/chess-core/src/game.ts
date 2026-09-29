@@ -124,23 +124,49 @@ export class Game {
   }
 
   /** Carga una partida desde el texto de jugadas de un PGN (sin variantes). */
+  /**
+   * Lee la línea principal de un PGN: ignora comentarios, variantes (anidadas), NAG y signos
+   * de anotación (!, ?, !?). Si el texto contiene varias partidas, lee la primera.
+   */
   static fromPgn(pgn: string): Game {
-    const fen = /\[FEN "([^"]+)"\]/.exec(pgn)?.[1];
+    const first = splitPgn(pgn)[0] ?? pgn;
+    const fen = pgnHeaders(first).FEN;
     const game = new Game(fen);
-    const body = pgn
+    let body = first
       .replace(/\[[^\]]*\]/g, ' ')
       .replace(/\{[^}]*\}/g, ' ')
       .replace(/;[^\n]*/g, ' ')
       .replace(/\$\d+/g, ' ');
-    if (/\(/.test(body)) throw new Error('PGN con variantes: aún no soportado en el prototipo');
+    // Variantes: se eliminan de dentro hacia fuera para soportar anidamiento.
+    while (/\([^()]*\)/.test(body)) body = body.replace(/\([^()]*\)/g, ' ');
+    if (/[()]/.test(body)) throw new Error('PGN inválido: paréntesis sin cerrar');
     const tokens = body.split(/\s+/).filter((t) => t && !/^\d+\.+$/.test(t) && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(t));
     for (const raw of tokens) {
-      const token = raw.replace(/^\d+\.+/, '');
+      const token = raw.replace(/^\d+\.+/, '').replace(/[!?]+$/, '');
       if (!token) continue;
       if (!game.move(token)) throw new Error(`Jugada ilegal o no reconocida en el PGN: ${token}`);
     }
     return game;
   }
+}
+
+/** Etiquetas de un PGN ([White "…"] …); con varias partidas, las de la primera. */
+export function pgnHeaders(pgn: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const m of (splitPgn(pgn)[0] ?? pgn).matchAll(/\[(\w+)\s+"((?:[^"\\]|\\.)*)"\]/g)) out[m[1]!] = m[2]!.replace(/\\"/g, '"');
+  return out;
+}
+
+/** Separa un archivo PGN con varias partidas. */
+export function splitPgn(text: string): string[] {
+  const parts = text.replace(/\r/g, '').split(/\n\s*\n(?=\s*\[)/).map((p) => p.trim()).filter(Boolean);
+  const games: string[] = [];
+  for (const p of parts) {
+    // Un bloque que solo tiene etiquetas se une con su texto de jugadas.
+    if (games.length && !/^\s*\[/.test(p)) games[games.length - 1] += `\n\n${p}`;
+    else games.push(p);
+  }
+  return games;
 }
 
 function lacksMatingMaterial(pos: Position, color: 'w' | 'b'): boolean {

@@ -11,8 +11,8 @@
 import { fileOf, FILES, rankOf, squareName, type Color, type PieceType, type Position, type Square } from '@kavalo/chess-core';
 import type { Arrow } from '@kavalo/tactics';
 import { h } from '../dom.js';
+import { pieceUrl } from './pieces.js';
 
-const PIECE_BASE = new URL('../../../../assets/pieces/royal-modern/', import.meta.url).href;
 const NAMES: Record<PieceType, string> = { p: 'peón', n: 'caballo', b: 'alfil', r: 'torre', q: 'dama', k: 'rey' };
 let boardCount = 0;
 
@@ -189,6 +189,11 @@ export class Board {
     this.drawArrows();
   }
 
+  /** Posición y última jugada mostradas (para exportar lo que ve el usuario). */
+  get shown(): { position: Position | null; lastMove: LastMove | null } {
+    return { position: this.pos, lastMove: this.lastMove };
+  }
+
   /** Flechas y círculos del usuario (para tests o para guardar anotaciones). */
   get userMarks() {
     return { arrows: [...this.userArrows], circles: [...this.userCircles.keys()] };
@@ -270,7 +275,7 @@ export class Board {
       el.setAttribute('aria-label', `${this.describe(sq)}${targets.has(sq) ? ', destino posible' : ''}`);
       el.setAttribute('aria-selected', String(this.selected === sq));
       if (piece) {
-        el.append(h('img', { class: 'piece', src: `${PIECE_BASE}${piece.color}${piece.type.toUpperCase()}.svg`, alt: '', draggable: 'false' }));
+        el.append(h('img', { class: 'piece', src: pieceUrl(piece.color, piece.type), alt: '', draggable: 'false' }));
       }
       if (targets.has(sq)) el.append(h('span', { class: piece ? 'dot dot-capture' : 'dot', 'aria-hidden': 'true' }));
     }
@@ -494,7 +499,7 @@ export class Board {
     this.overlay.hidden = false;
     const buttons = (['q', 'r', 'b', 'n'] as PieceType[]).map((p) =>
       h('button', { class: 'promo-btn', 'aria-label': `Coronar en ${NAMES[p]}`, onclick: (() => { this.overlay.hidden = true; done(p); this.grid.focus(); }) as EventListener },
-        h('img', { src: `${PIECE_BASE}${color}${p.toUpperCase()}.svg`, alt: '' })));
+        h('img', { src: pieceUrl(color, p), alt: '' })));
     this.overlay.replaceChildren(
       h('div', { class: 'promo', role: 'dialog', 'aria-label': 'Elegir pieza de promoción' },
         h('p', {}, '¿En qué pieza quieres coronar?'),

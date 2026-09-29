@@ -1,7 +1,9 @@
 /** Progreso: ratings, partidas, errores frecuentes, Error Reduction Rate y dominio de conceptos. */
 import { STATE_ICON } from '@kavalo/pedagogy';
 import { learningStreak } from '@kavalo/coach';
-import { h, navigate, primaryButton, screen } from '../dom.js';
+import { button, h, navigate, primaryButton, screen } from '../dom.js';
+import { download } from '../components/board-image.js';
+import { planMarkdown, statsCsv } from '../state/exports.js';
 import { conceptProgress, errorReduction, mistakeStats } from '../state/insights.js';
 import { levelName, profile } from '../state/store.js';
 
@@ -45,10 +47,16 @@ export function renderProgress(root: HTMLElement): void {
 
     g.length ? h('div', { class: 'card' }, h('h2', {}, 'Partidas recientes'),
       h('ul', { class: 'games' }, ...g.slice(-8).reverse().map((x) => h('li', {}, h('a', { href: `#/analysis/${x.id}` },
-        `${x.userResult === 'win' ? '✅' : x.userResult === 'draw' ? '🤝' : '❌'} ${new Date(x.at).toLocaleDateString('es')} · vs ${x.bot.personality} nivel ${x.bot.level}`))))) : null,
+        `${x.userResult === 'win' ? '✅' : x.userResult === 'draw' ? '🤝' : '❌'} ${new Date(x.at).toLocaleDateString('es')} · ${x.mode === 'import' ? 'partida importada' : `vs ${x.bot.personality} nivel ${x.bot.level}`}`))))) : null,
     h('div', { class: 'home-links' },
       h('a', { class: 'card card-link', href: '#/report' }, h('p', { class: 'eyebrow' }, 'Tu semana'), h('p', {}, 'Reporte semanal')),
       h('a', { class: 'card card-link', href: '#/achievements' }, h('p', { class: 'eyebrow' }, 'Logros'), h('p', {}, 'Ver todos'))),
+    h('div', { class: 'card' }, h('h2', {}, 'Importar y exportar'),
+      h('div', { class: 'cta' },
+        button('📥 Importar partida (PGN) o posición (FEN)', () => navigate('#/import')),
+        button('Exportar estadísticas (CSV)', () => download(`kavalo-estadisticas-${new Date().toISOString().slice(0, 10)}.csv`, statsCsv(), 'text/csv')),
+        button('Exportar plan de entrenamiento (.md)', () => download(`kavalo-plan-${new Date().toISOString().slice(0, 10)}.md`, planMarkdown(), 'text/markdown')),
+        button('Exportar todas mis partidas (PGN)', () => download('kavalo-partidas.pgn', profile.games.map((x) => x.pgn.trim()).join('\n\n') + '\n', 'application/x-chess-pgn'), { disabled: !g.length }))),
     h('div', { class: 'cta' }, primaryButton('VER MI ADN', () => navigate('#/dna'))),
   ));
 }

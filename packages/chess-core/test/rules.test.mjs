@@ -189,3 +189,25 @@ test('parseUserMove: notación española, inglesa, UCI, enroques y palabras', as
   assert.equal(san(amb, 'cxd4'), 'cxd4');
   assert.equal(san(amb, 'Cxd4'), 'Nxd4');
 });
+
+test('PGN: variantes anidadas, comentarios, NAG, anotaciones y varias partidas', async () => {
+  const { Game: G, pgnHeaders, splitPgn } = await import('../dist/index.js');
+  const pgn = `[Event "Club"]
+[White "Ana"]
+[Black "Leo"]
+[Result "1-0"]
+
+1. e4! {buena} e5 (1... c5 2. Nf3 (2. c3) d6) 2. Nf3 $1 Nc6?! 3. Bb5 a6 1-0
+
+[Event "Otra"]
+[White "X"]
+
+1. d4 d5 *`;
+  const g = G.fromPgn(pgn);
+  assert.equal(g.history.map((p) => p.san).join(' '), 'e4 e5 Nf3 Nc6 Bb5 a6');
+  assert.equal(pgnHeaders(pgn).White, 'Ana');
+  assert.equal(splitPgn(pgn).length, 2);
+  assert.equal(pgnHeaders(splitPgn(pgn)[1]).White, 'X');
+  assert.throws(() => G.fromPgn('1. e4 (1. d4 e5'), /paréntesis/);
+  assert.throws(() => G.fromPgn('1. e4 e5 2. Ke3'), /ilegal/);
+});

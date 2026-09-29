@@ -13,6 +13,7 @@ import {
   SEVERITY_LABEL, SEVERITY_SYMBOL, type Explanation, type ReviewedMove,
 } from '@kavalo/tactics';
 import { Board } from '../components/board.js';
+import { boardToPng, download } from '../components/board-image.js';
 import { drawToggle, moveNavigator } from '../components/board-tools.js';
 import { coachBubble } from '../components/coach.js';
 import { append, button, h, navigate, primaryButton, screen } from '../dom.js';
@@ -258,6 +259,7 @@ export function renderAnalysis(root: HTMLElement, [id]: string[]): void | (() =>
           r ? ` Jugada ${Math.floor(r.ply / 2) + 1}: ${localizeSan(r.played.san, 'es')} ${r.symbol}` : ` ${empty}`)));
 
     const lesson = study ? LESSONS.find((l) => l.conceptId === study.id) : undefined;
+    const exportNote = h('p', { class: 'muted small fen-note' });
     body.replaceChildren();
     append(body, [
       h('h1', { class: 'screen-title' }, `${title} · precisión ${accuracyWords}`),
@@ -283,6 +285,19 @@ export function renderAnalysis(root: HTMLElement, [id]: string[]): void | (() =>
           ? primaryButton('PRACTICAR ESTO AHORA', () => navigate(lesson && !profile.completedLessons.includes(lesson.id) ? `#/lesson/${lesson.id}` : `#/puzzles/${learnRow.concept ?? ''}`))
           : primaryButton('NUEVA PARTIDA', () => navigate('#/play')),
         button('Copiar PGN', () => { void navigator.clipboard?.writeText(record.pgn); })),
+      h('details', { class: 'card export' }, h('summary', {}, 'Exportar'),
+        h('div', { class: 'cta' },
+          button('Descargar PGN', () => download(`kavalo-${record.id}.pgn`, record.pgn, 'application/x-chess-pgn')),
+          button('Copiar FEN de la posición mostrada', () => {
+            const fen = board.shown.position?.toFen();
+            if (fen) void navigator.clipboard?.writeText(fen).catch(() => undefined);
+            if (fen) exportNote.textContent = `FEN: ${fen}`;
+          }),
+          button('Descargar imagen (PNG)', () => {
+            const { position, lastMove } = board.shown;
+            if (position) void boardToPng(position, { orientation: record.userColor, lastMove }).then((b) => download(`kavalo-${record.id}.png`, b));
+          })),
+        exportNote),
     ]);
     const initial = learnRow ?? firstError ?? bestRow;
     if (initial) showRow(initial, initial === learnRow ? 'Momento 3 · Esto debes aprender' : initial === firstError ? 'Momento 2 · Aquí empezó el problema' : 'Momento 1 · Lo hiciste muy bien', false);

@@ -7,6 +7,7 @@ import { reviewInBackground } from './state/review.js';
 import { renderTrain } from './screens/train.js';
 import { renderOpenings } from './screens/openings.js';
 import { renderLibrary } from './screens/library.js';
+import { renderImport } from './screens/import.js';
 import { showReward } from './components/toast.js';
 import { renderDna } from './screens/dna.js';
 import { renderHome, renderPlan } from './screens/home.js';
@@ -40,6 +41,7 @@ const ROUTES: Record<string, { render: Render; tab?: string; title: string }> = 
   train: { render: renderTrain, tab: 'learn', title: 'Entrenamiento' },
   openings: { render: renderOpenings, tab: 'learn', title: 'Aperturas' },
   library: { render: renderLibrary, tab: 'learn', title: 'Biblioteca' },
+  import: { render: renderImport, tab: 'progress', title: 'Importar' },
 };
 
 const TABS = [

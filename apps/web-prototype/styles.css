@@ -344,6 +344,10 @@ circle.arrow-user { stroke: var(--brass); } circle.arrow-danger { stroke: var(--
 .mode-desc { margin-top: 4px; }
 .field { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
 .custom-clock { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* Importar / exportar */
+.import-area { min-height: 140px; font-family: var(--font-mono); font-size: .85rem; resize: vertical; }
+.fen-note { word-break: break-all; }
+
 /* Aperturas */
 .stepper { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 0; margin: 8px 0; font-size: .85rem; }
 .stepper li.on button { font-weight: 700; text-decoration: none; color: var(--text); }
